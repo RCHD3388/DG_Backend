@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import router dari file yang sudah kita buat
-from app.api import documentation_router
+from app.api import main_router
 # Import konfigurasi
 from app.core.config import UPLOAD_DIRECTORY
 
@@ -31,14 +31,14 @@ app.add_middleware(
 # --- LOGIKA STARTUP ---
 @app.on_event("startup")
 async def startup_event():
-    """Memastikan direktori upload ada saat aplikasi dimulai."""
+    """Memastikan direktori upload ada saat aplikasi dimulai. Pastikan direktori ini ada sebelum memulai aplikasi."""
     UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    print(f"Direktori upload '{UPLOAD_DIRECTORY}' siap.")
+    print(f"Uploaded Files Directory : '{UPLOAD_DIRECTORY}' created.")
 
 
 # --- MENYERTAKAN ROUTER DARI MODUL LAIN ---
 # Ini adalah bagian kunci yang menghubungkan endpoint kita ke aplikasi utama
-app.include_router(documentation_router.router)
+app.include_router(main_router.router)
 
 
 # --- ENDPOINT ROOT (OPSIONAL) ---

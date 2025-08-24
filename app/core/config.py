@@ -8,7 +8,8 @@ from pathlib import Path
 # .parent -> /path/lengkap/ke/doc_generator_backend/app/core
 # .parent -> /path/lengkap/ke/doc_generator_backend/app
 # .parent -> /path/lengkap/ke/doc_generator_backend/
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+APP_BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = APP_BASE_DIR.parent
 
 # Direktori untuk menyimpan file yang di-upload, relatif terhadap root proyek
-UPLOAD_DIRECTORY = BASE_DIR / "uploaded_files"
+UPLOAD_DIRECTORY = APP_BASE_DIR / "uploaded_files"

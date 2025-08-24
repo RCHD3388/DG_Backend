@@ -2,6 +2,9 @@
 __pycache__/
 *.py[co]
 
+#Upload Files
+uploaded_files/
+
 #Environment
 .env
 .venv
