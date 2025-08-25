@@ -17,6 +17,7 @@ router = APIRouter(
 )
 
 router.include_router(files.router)
+router.include_router(analyze.router)
 
 # @router.post("/upload_files/", status_code=200)
 # async def upload_files(files: List[UploadFile] = File(...)):

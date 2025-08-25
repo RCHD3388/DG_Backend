@@ -13,3 +13,4 @@ BASE_DIR = APP_BASE_DIR.parent
 
 # Direktori untuk menyimpan file yang di-upload, relatif terhadap root proyek
 UPLOAD_DIRECTORY = APP_BASE_DIR / "uploaded_files"
+ANALYZE_DIRECTORY = APP_BASE_DIR / "analyze_results"
