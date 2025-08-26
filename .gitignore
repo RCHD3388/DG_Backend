@@ -4,6 +4,7 @@ __pycache__/
 
 #Upload Files
 uploaded_files/
+extracted_projects/
 
 #Environment
 .env

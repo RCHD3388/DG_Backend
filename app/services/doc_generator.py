@@ -1,0 +1,51 @@
+# app/services/doc_generator.py
+
+from pathlib import Path
+import zipfile
+import shutil
+from app.core.redis_client import get_redis_client
+from app.core.config import EXTRACTED_PROJECTS_DIR
+from app.schemas.task_schema import TaskStatus, TaskStatusDetail
+
+async def generate_documentation_for_project(source_file_path: Path, task_id: str):
+    """
+    Fungsi orkestrator yang mengelola seluruh alur kerja dari awal hingga akhir.
+    """
+    redis_client = get_redis_client()
+    project_extract_path = EXTRACTED_PROJECTS_DIR / task_id
+    
+    try:
+        # --- Update Status Awal ---
+        await redis_client.hset(f"task:{task_id}", "status", TaskStatus.PROCESSING.value)
+        await redis_client.hset(f"task:{task_id}", "status_detail", TaskStatusDetail.EXTRACTING.value)
+        
+        # --- Ekstraksi File ---
+        if source_file_path.suffix == '.zip':
+            with zipfile.ZipFile(source_file_path, 'r') as zip_ref:
+                zip_ref.extractall(project_extract_path)
+        else: # Jika bukan zip, cukup salin
+             project_extract_path.mkdir(exist_ok=True)
+             shutil.copy(source_file_path, project_extract_path / source_file_path.name)
+        print(f"[{task_id}] File extracted to {project_extract_path}")
+
+        # --- Update Status Selesai ---
+        await redis_client.hset(f"task:{task_id}", mapping={
+            "status": TaskStatus.COMPLETED.value,
+            "status_detail": TaskStatusDetail.COMPLETED.value,
+            "result_url": "DUMMY URL"
+        })
+
+    except Exception as e:
+        # --- Tangani Error ---
+        print(f"[{task_id}] TERJADI ERROR: {e}")
+        await redis_client.hset(f"task:{task_id}", mapping={
+            "status": TaskStatus.FAILED.value, 
+            "status_detail": TaskStatusDetail.FAILED.value,
+            "error": str(e)
+        })
+    finally:
+        # --- Selalu Tutup Koneksi & Bersihkan ---
+        await redis_client.close()
+        # # Opsional: Hapus direktori file yang diekstrak untuk menghemat ruang
+        if project_extract_path.exists():
+            shutil.rmtree(project_extract_path)

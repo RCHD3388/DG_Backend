@@ -7,11 +7,40 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import main_router
 # Import konfigurasi
 from app.core.config import UPLOAD_DIRECTORY
+from contextlib import asynccontextmanager
+from app.core.redis_client import get_redis_client
+
+import redis
+from app.core.redis_client import get_redis_client, redis_pool
+
+# --- LIFESPAN EVENT MANAGER ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Mengelola event saat startup dan shutdown aplikasi.
+    """
+    # --- Kode yang dijalankan SEBELUM aplikasi mulai menerima request (Startup) ---
+    print("--- Memeriksa koneksi ke Redis... ---")
+    redis_client = get_redis_client()
+    try:
+        # Kirim perintah PING untuk memvalidasi koneksi
+        await redis_client.ping()
+        print("✅ Redis connection successful!")
+    except redis.exceptions.ConnectionError as e:
+        print(f"❌ Redis connection failed: {e}")
+    
+    yield # Aplikasi sekarang siap dan akan berjalan
+
+    # --- Kode yang dijalankan SETELAH aplikasi berhenti (Shutdown) ---
+    print("--- Closing Redis connection... ---")
+    await redis_pool.disconnect()
+    print("🔌 Redis connection closed.")
 
 # Inisialisasi aplikasi FastAPI
 app = FastAPI(
     title="Automated Python Documentation Generator",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan
 )
 
 # --- KONFIGURASI CORS ---
