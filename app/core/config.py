@@ -25,3 +25,4 @@ BASE_DIR = APP_BASE_DIR.parent
 UPLOAD_DIRECTORY = APP_BASE_DIR / "uploaded_files"
 ANALYZE_DIRECTORY = APP_BASE_DIR / "analyze_results"
 EXTRACTED_PROJECTS_DIR = APP_BASE_DIR / "extracted_projects"
+DEPENDENCY_GRAPHS_DIR = APP_BASE_DIR / "dependency_graphs"

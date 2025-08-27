@@ -1,11 +1,23 @@
 # app/services/doc_generator.py
 
-from pathlib import Path
 import zipfile
 import shutil
+import sys
+import logging
+from pathlib import Path
 from app.core.redis_client import get_redis_client
 from app.core.config import EXTRACTED_PROJECTS_DIR
 from app.schemas.task_schema import TaskStatus, TaskStatusDetail
+from app.services.dependency_analyzer.parser import DependencyParser
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger("docstring_generator")
 
 def extract_zip(file_path: Path, extract_to: Path):
     if file_path.suffix == '.zip':
@@ -31,7 +43,21 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         # --- Ekstraksi File ---
         extract_zip(source_file_path, project_extract_path)
         print(f"[{task_id}] File extracted to {project_extract_path}")
-        await redis_client.hset(f"task:{task_id}", "status_detail", TaskStatusDetail.ANALYZING_STRUCTURE.value)
+
+        # -- Create Dependency Graphs Directory if not exists --
+        dependency_graphs_dir = EXTRACTED_PROJECTS_DIR
+        dependency_graphs_dir.mkdir(parents=True, exist_ok=True)
+
+        dependency_graph_path = dependency_graphs_dir / f"{task_id}_dependency_graph.json"
+
+        # --- Parsing Repository ---
+        await redis_client.hset(f"task:{task_id}", "status_detail", TaskStatusDetail.PARSING_FILES.value)
+        
+        logger.info(f"[{task_id}] Parsing repository at {project_extract_path}")
+        parser = DependencyParser(str(project_extract_path))
+        components = parser.parse_repository()
+
+
 
         # --- Analisis Struktur Proyek ---
 
@@ -56,5 +82,5 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         # --- Selalu Tutup Koneksi & Bersihkan ---
         await redis_client.close()
         # # Opsional: Hapus direktori file yang diekstrak untuk menghemat ruang
-        if project_extract_path.exists():
-            shutil.rmtree(project_extract_path)
+        # if project_extract_path.exists():
+        #     shutil.rmtree(project_extract_path)
