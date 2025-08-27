@@ -7,6 +7,15 @@ from app.core.redis_client import get_redis_client
 from app.core.config import EXTRACTED_PROJECTS_DIR
 from app.schemas.task_schema import TaskStatus, TaskStatusDetail
 
+def extract_zip(file_path: Path, extract_to: Path):
+    if file_path.suffix == '.zip':
+        with zipfile.ZipFile(file_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_to)
+    else: # Jika bukan zip, cukup salin
+        extract_to.mkdir(exist_ok=True)
+        shutil.copy(file_path, extract_to / file_path.name)
+        
+
 async def generate_documentation_for_project(source_file_path: Path, task_id: str):
     """
     Fungsi orkestrator yang mengelola seluruh alur kerja dari awal hingga akhir.
@@ -20,13 +29,13 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         await redis_client.hset(f"task:{task_id}", "status_detail", TaskStatusDetail.EXTRACTING.value)
         
         # --- Ekstraksi File ---
-        if source_file_path.suffix == '.zip':
-            with zipfile.ZipFile(source_file_path, 'r') as zip_ref:
-                zip_ref.extractall(project_extract_path)
-        else: # Jika bukan zip, cukup salin
-             project_extract_path.mkdir(exist_ok=True)
-             shutil.copy(source_file_path, project_extract_path / source_file_path.name)
+        extract_zip(source_file_path, project_extract_path)
         print(f"[{task_id}] File extracted to {project_extract_path}")
+        await redis_client.hset(f"task:{task_id}", "status_detail", TaskStatusDetail.ANALYZING_STRUCTURE.value)
+
+        # --- Analisis Struktur Proyek ---
+
+        # --- Generasi Dokumentasi ---
 
         # --- Update Status Selesai ---
         await redis_client.hset(f"task:{task_id}", mapping={

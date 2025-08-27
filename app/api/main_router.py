@@ -4,7 +4,7 @@ import shutil
 from typing import List
 
 from fastapi import APIRouter, File, UploadFile, HTTPException, FastAPI
-from app.api.routers import files, analyze
+from app.api.routers import analyze, file, task
 from starlette.responses import JSONResponse
 
 # Import konfigurasi UPLOAD_DIRECTORY dari file config
@@ -16,5 +16,6 @@ router = APIRouter(
     tags=["File Upload"] # Mengelompokkan endpoint di dokumentasi Swagger
 )
 
-router.include_router(files.router)
+router.include_router(file.router)
 router.include_router(analyze.router)
+router.include_router(task.router)
