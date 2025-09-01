@@ -152,9 +152,11 @@ class DependencyCollector(ast.NodeVisitor):
         # Skip built-in types
         if name in BUILTIN_TYPES:
             return
-            
         # Skip excluded names
         if name in EXCLUDED_NAMES:
+            return
+        # Skip standard library modules
+        if name in STANDARD_MODULES:
             return
             
         # Skip local variables
@@ -163,10 +165,6 @@ class DependencyCollector(ast.NodeVisitor):
             
         # Check if name is directly imported from a module
         for module, imported_names in self.from_imports.items():
-            # Skip standard library modules
-            if module in STANDARD_MODULES:
-                continue
-                
             if name in imported_names and module in self.repo_modules:
                 self.dependencies.add(f"{module}.{name}")
                 return

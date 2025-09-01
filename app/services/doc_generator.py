@@ -29,6 +29,15 @@ def extract_zip(file_path: Path, extract_to: Path):
     else: # Jika bukan zip, cukup salin
         extract_to.mkdir(exist_ok=True)
         shutil.copy(file_path, extract_to / file_path.name)
+    
+    items_inside = list(extract_to.iterdir())
+    
+    if len(items_inside) == 0:
+        return None
+    elif len(items_inside) == 1 and items_inside[0].is_dir():
+        return items_inside[0]
+    else:
+        return extract_to
 
 async def generate_documentation_for_project(source_file_path: Path, task_id: str):
     """
@@ -43,7 +52,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         await redis_client.hset(f"task:{task_id}", "status_detail", TaskStatusDetail.EXTRACTING.value)
         
         # --- FILE EXTRACTION ---
-        extract_zip(source_file_path, project_extract_path)
+        current_repo_path = extract_zip(source_file_path, project_extract_path)
         print(f"[{task_id}] File extracted to {project_extract_path}")
 
         # -- Create if not exists --
@@ -58,10 +67,10 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         await redis_client.hset(f"task:{task_id}", "status_detail", TaskStatusDetail.PARSING_FILES.value)
         
         logger.info(f"[{task_id}] Parsing repository at {project_extract_path}")
-        parser = DependencyParser(project_extract_path)
+        parser = DependencyParser(current_repo_path)
         
         relevant_files = parser.get_relevant_files()
-        relative_file_paths = [str(p.relative_to(project_extract_path)) for p in relevant_files]
+        relative_file_paths = [str(p.relative_to(current_repo_path)) for p in relevant_files]
         
         files_update = {
             "discovered_files": json.dumps(relative_file_paths), 
@@ -72,7 +81,6 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         
         # --- REPOSITORY PROJECT ANALYSIS ---
         parser.parse_repository()
-        parser.save_components_to_json(collected_components_path)
         parser.save_dependency_graph(dependency_graph_path)
 
         # --- DOCUMENT GENERATION ---

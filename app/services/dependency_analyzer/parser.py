@@ -370,7 +370,7 @@ class DependencyParser:
                             dependency_collector.local_variables.add(arg.arg)
                             
                     dependency_collector.visit(component_node)
-                    print(f"Component {component_id} depends on: {dependency_collector.dependencies}")
+                    
                     # Add dependencies to the component
                     component.depends_on.update(dependency_collector.dependencies)
                     
@@ -426,37 +426,3 @@ class DependencyParser:
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(serializable_components, f, indent=2)
         
-        logger.info(f"Saved dependency graph to {output_path}")
-    # --- RESOLVE DEPENDENCIES END ---
-    def save_components_to_json(self, output_path: Path) -> Path:
-        """
-        Saves all collected CodeComponent objects to a JSON file.
-
-        Each CodeComponent is converted to its dictionary representation.
-
-        Args:
-            output_path: The full path to the JSON file where components will be saved.
-
-        Returns:
-            The path to the saved JSON file.
-        """
-        try:
-            output_path.parent.mkdir(parents=True, exist_ok=True) # Pastikan direktori output ada
-            
-            components_data = {
-                comp_id: component.to_dict()
-                for comp_id, component in self.components.items()
-            }
-            
-            with open(output_path, "w", encoding="utf-8") as f:
-                import json
-                json.dump(components_data, f, indent=4)
-            
-            logger.info(f"Successfully saved {len(self.components)} components to {output_path}")
-            print(f"Components count : {len(self.components)}")
-            
-            return output_path
-
-        except Exception as e:
-            logger.error(f"Error saving components to JSON at {output_path}: {e}")
-            raise # Re-raise the exception after logging
