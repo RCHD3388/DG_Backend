@@ -21,8 +21,11 @@ settings = Settings()
 APP_BASE_DIR = Path(__file__).resolve().parent.parent
 BASE_DIR = APP_BASE_DIR.parent
 
+PROCESS_OUTPUT_DIR = APP_BASE_DIR / "process_outputs"
+
 # Direktori untuk menyimpan file yang di-upload, relatif terhadap root proyek
 UPLOAD_DIRECTORY = APP_BASE_DIR / "uploaded_files"
-ANALYZE_DIRECTORY = APP_BASE_DIR / "analyze_results"
+ANALYZE_DIRECTORY = PROCESS_OUTPUT_DIR / "analyze_results"
 EXTRACTED_PROJECTS_DIR = APP_BASE_DIR / "extracted_projects"
-DEPENDENCY_GRAPHS_DIR = APP_BASE_DIR / "dependency_graphs"
+DEPENDENCY_GRAPHS_DIR = PROCESS_OUTPUT_DIR / "dependency_graphs"
+COLLECTED_COMPONENTS_DIR = PROCESS_OUTPUT_DIR / "collected_components"

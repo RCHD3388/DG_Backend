@@ -5,6 +5,7 @@ __pycache__/
 #Upload Files
 uploaded_files/
 extracted_projects/
+process_outputs/
 
 #Environment
 .env

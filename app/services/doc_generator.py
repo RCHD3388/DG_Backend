@@ -5,8 +5,11 @@ import shutil
 import sys
 import logging
 from pathlib import Path
+
+from flask import json
+from app.core.websocket_manager import websocket_manager
 from app.core.redis_client import get_redis_client
-from app.core.config import EXTRACTED_PROJECTS_DIR
+from app.core.config import COLLECTED_COMPONENTS_DIR, EXTRACTED_PROJECTS_DIR, DEPENDENCY_GRAPHS_DIR
 from app.schemas.task_schema import TaskStatus, TaskStatusDetail
 from app.services.dependency_analyzer.parser import DependencyParser
 
@@ -26,7 +29,6 @@ def extract_zip(file_path: Path, extract_to: Path):
     else: # Jika bukan zip, cukup salin
         extract_to.mkdir(exist_ok=True)
         shutil.copy(file_path, extract_to / file_path.name)
-        
 
 async def generate_documentation_for_project(source_file_path: Path, task_id: str):
     """
@@ -40,35 +42,49 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         await redis_client.hset(f"task:{task_id}", "status", TaskStatus.PROCESSING.value)
         await redis_client.hset(f"task:{task_id}", "status_detail", TaskStatusDetail.EXTRACTING.value)
         
-        # --- Ekstraksi File ---
+        # --- FILE EXTRACTION ---
         extract_zip(source_file_path, project_extract_path)
         print(f"[{task_id}] File extracted to {project_extract_path}")
 
-        # -- Create Dependency Graphs Directory if not exists --
-        dependency_graphs_dir = EXTRACTED_PROJECTS_DIR
+        # -- Create if not exists --
+        dependency_graphs_dir = DEPENDENCY_GRAPHS_DIR
+        collected_components_dir = COLLECTED_COMPONENTS_DIR 
+        collected_components_dir.mkdir(parents=True, exist_ok=True)
         dependency_graphs_dir.mkdir(parents=True, exist_ok=True)
-
+        collected_components_path = collected_components_dir / f"{task_id}_components.json"
         dependency_graph_path = dependency_graphs_dir / f"{task_id}_dependency_graph.json"
 
-        # --- Parsing Repository ---
+        # --- PARSING REPOSITORY ---
         await redis_client.hset(f"task:{task_id}", "status_detail", TaskStatusDetail.PARSING_FILES.value)
         
         logger.info(f"[{task_id}] Parsing repository at {project_extract_path}")
-        parser = DependencyParser(str(project_extract_path))
-        components = parser.parse_repository()
+        parser = DependencyParser(project_extract_path)
+        
+        relevant_files = parser.get_relevant_files()
+        relative_file_paths = [str(p.relative_to(project_extract_path)) for p in relevant_files]
+        
+        files_update = {
+            "discovered_files": json.dumps(relative_file_paths), 
+            "status_detail": TaskStatusDetail.PARSING_FILES.value
+        }
+        await redis_client.hset(f"task:{task_id}", mapping=files_update)
+        await websocket_manager.broadcast_task_update(task_id)
+        
+        # --- REPOSITORY PROJECT ANALYSIS ---
+        parser.parse_repository()
+        parser.save_components_to_json(collected_components_path)
+        parser.save_dependency_graph(dependency_graph_path)
 
+        # --- DOCUMENT GENERATION ---
 
-
-        # --- Analisis Struktur Proyek ---
-
-        # --- Generasi Dokumentasi ---
-
-        # --- Update Status Selesai ---
-        await redis_client.hset(f"task:{task_id}", mapping={
+        # --- COMPLETED ---
+        final_update = {
             "status": TaskStatus.COMPLETED.value,
             "status_detail": TaskStatusDetail.COMPLETED.value,
             "result_url": "DUMMY URL"
-        })
+        }
+        await redis_client.hset(f"task:{task_id}", mapping=final_update)
+        await websocket_manager.broadcast_task_update(task_id)
 
     except Exception as e:
         # --- Tangani Error ---

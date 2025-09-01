@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 import uuid
 
 # --- Mapping untuk Status Detail ---
@@ -36,6 +36,8 @@ class Task(BaseModel):
     # Progress Tracking
     target_process: int = 0
     current_process: int = 0
+
+    discovered_files: Optional[List[str]] = []
     
     # Hasil atau Error
     result_url: str = ""

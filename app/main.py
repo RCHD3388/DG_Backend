@@ -9,6 +9,10 @@ from app.api import main_router
 from app.core.config import UPLOAD_DIRECTORY
 from contextlib import asynccontextmanager
 from app.core.redis_client import get_redis_client
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from app.schemas.response_schema import StandardResponse, ErrorDetail
 
 import redis
 from app.core.redis_client import get_redis_client, redis_pool
@@ -20,8 +24,9 @@ async def lifespan(app: FastAPI):
     Mengelola event saat startup dan shutdown aplikasi.
     """
     # --- Kode yang dijalankan SEBELUM aplikasi mulai menerima request (Startup) ---
-    print("--- Memeriksa koneksi ke Redis... ---")
+    print("--- Checking Redis connection... ---")
     redis_client = get_redis_client()
+    UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
     try:
         # Kirim perintah PING untuk memvalidasi koneksi
         await redis_client.ping()
@@ -43,6 +48,24 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# --- ERROR HANDLING ---
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    error_response = StandardResponse(
+        success=False,
+        error=ErrorDetail(
+            code=exc.status_code,
+            type=exc.__class__.__name__, # Misal: 'HTTPException', 'NotFoundException'
+            message=str(exc.detail)
+        )
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        # model_dump() mengubah Pydantic model menjadi dictionary
+        # exclude_none=True agar field 'data' yang kosong tidak dikirim
+        content=error_response.model_dump(exclude_none=True)
+    )
+
 # --- KONFIGURASI CORS ---
 origins = [
     "http://localhost",
@@ -56,14 +79,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# --- LOGIKA STARTUP ---
-@app.on_event("startup")
-async def startup_event():
-    """Memastikan direktori upload ada saat aplikasi dimulai. Pastikan direktori ini ada sebelum memulai aplikasi."""
-    UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    print(f"Uploaded Files Directory : '{UPLOAD_DIRECTORY}' created.")
-
 
 # --- MENYERTAKAN ROUTER DARI MODUL LAIN ---
 # Ini adalah bagian kunci yang menghubungkan endpoint kita ke aplikasi utama

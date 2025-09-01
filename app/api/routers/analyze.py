@@ -5,9 +5,12 @@ from pathlib import Path
 import shutil
 from typing import List
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
-from fastapi.responses import JSONResponse, FileResponse
-from app.core.config import UPLOAD_DIRECTORY, ANALYZE_DIRECTORY
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
+from app.core.websocket_manager import websocket_manager
+from app.schemas.response.analyze_schema import AnalysisStartSuccessData
+from app.schemas.response_schema import StandardResponse
+from app.core.config import UPLOAD_DIRECTORY
 from app.services.doc_generator import generate_documentation_for_project
 from app.core.config import settings
 from app.core.redis_client import get_redis_client
@@ -22,7 +25,26 @@ router = APIRouter(
     tags=["Analysis"]
 )
 
-@router.post("/{file_name}", status_code=200)
+@router.websocket("/ws/subscribe/{task_id}")
+async def websocket_subscribe_to_task(websocket: WebSocket, task_id: str):
+    """
+    Menghubungkan klien ke WebSocket dan mengirimkan status task awal.
+    """
+    await websocket_manager.connect(task_id, websocket)
+    await websocket_manager.broadcast_task_update(task_id)
+    
+    try:
+        # Jaga koneksi tetap terbuka
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        websocket_manager.disconnect(task_id)
+
+@router.post(
+    "/{file_name}", 
+    status_code=200,
+    response_model=StandardResponse[AnalysisStartSuccessData]
+)
 async def analyze_repository(
     file_name: str,
     background_tasks: BackgroundTasks,
@@ -35,11 +57,14 @@ async def analyze_repository(
 
     # 1. Buat instance Task menggunakan blueprint kita
     new_task = Task(source_file=file_name)
+    task_data = new_task.model_dump()
+    task_data_for_redis = {key: str(value) for key, value in task_data.items()}
 
     # 4. Simpan dictionary yang sudah dikonversi ke Redis
+    print(f"Creating new analysis task with ID: {new_task}")
     await redis_client.hset(
         f"task:{new_task.task_id}", 
-        mapping=new_task.model_dump() # <-- Gunakan dictionary yang sudah aman
+        mapping=task_data_for_redis # <-- Gunakan dictionary yang sudah aman
     )
 
     # 3. Jadwalkan background task
@@ -48,6 +73,12 @@ async def analyze_repository(
         source_file_path=repo_file_path,
         task_id=new_task.task_id
     )
+
+    response_data = AnalysisStartSuccessData(
+        task_id=new_task.task_id,
+        message=f"Analysis process for file '{file_name}' has been successfully started."
+    )
+    return StandardResponse(data=response_data)
 
 # --- Endpoint download-result tidak berubah, sudah menangani tipe file .docx ---
 @router.get("/download-result/{result_filename}")
