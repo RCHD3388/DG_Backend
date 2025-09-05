@@ -6,7 +6,7 @@ from pathlib import Path
 from dataclasses import dataclass, field
 import logging
 
-from app.services.dependency_analyzer.collector import DependencyCollector, ImportCollector
+from app.services.dependency_analyzer.collector import SecondaryDependencyCollector, SecondaryImportCollector
 logger = logging.getLogger("Dependency Parser")
 
 @dataclass
@@ -118,7 +118,7 @@ class DependencyParser:
         # THIRD PASS: class and method dependencies
         self._add_class_method_dependencies()
 
-        logger.info(f"Total components collected: {len(self.components)}")
+        # logger.info(f"Total components collected: {len(self.components)}")
         return self.components
 
     def get_relevant_files(self):
@@ -306,6 +306,9 @@ class DependencyParser:
         for component_id, component in self.components.items():
             file_path = component.file_path
 
+            if component.component_type != "function" or component.id.split(".")[-1] != "main" or component.id.split(".")[-2] != "main":
+                continue
+
             try:
                 with open(file_path, "r", encoding="utf-8") as f:
                     source = f.read()
@@ -317,13 +320,16 @@ class DependencyParser:
                 add_parent_to_nodes(tree)
                 
                 # Collect imports
-                import_collector = ImportCollector()
+                import_collector = SecondaryImportCollector()
                 import_collector.visit(tree)
+
+                print(f"\nComponent {component.id} depends on: {import_collector.imports}\n LEN: {len(import_collector.imports)}\n")
+                print(f"\nComponent {component.id} depends on: {import_collector.wildcard_modules}\n LEN: {len(import_collector.wildcard_modules)}\n")
 
                 # Find the component node in the tree
                 component_node = None
                 module_path = self._file_to_module_path(component.relative_path)
-                
+
                 if component.component_type == "function":
                     # Find top-level function
                     for node in ast.iter_child_nodes(tree):
@@ -356,11 +362,12 @@ class DependencyParser:
                 
                 if component_node:
                     # Collect dependencies for this specific component
-                    dependency_collector = DependencyCollector(
+                    dependency_collector = SecondaryDependencyCollector(
                         import_collector.imports,
-                        import_collector.from_imports,
+                        import_collector.wildcard_modules,
                         module_path,
-                        self.modules
+                        self.modules,
+                        repo_path=self.repo_path
                     )
                     
                     # For functions and methods, collect variables defined in the function
@@ -370,6 +377,8 @@ class DependencyParser:
                             dependency_collector.local_variables.add(arg.arg)
                             
                     dependency_collector.visit(component_node)
+
+                    print(f"\nHasil Secondary : {component.id} depends on: {dependency_collector.dependencies}\n LEN: {len(dependency_collector.dependencies)}\n")
                     
                     # Add dependencies to the component
                     component.depends_on.update(dependency_collector.dependencies)
@@ -382,7 +391,9 @@ class DependencyParser:
                 
             except (SyntaxError, UnicodeDecodeError) as e:
                 logger.warning(f"Error analyzing dependencies in {file_path}: {e}")
+    # --- RESOLVE DEPENDENCIES END ---
 
+    # --- ADD CLASS METHOD DEPENDENCIES START ---
     def _add_class_method_dependencies(self):
         """
         Third pass to make classes dependent on their methods (except __init__).
@@ -411,6 +422,7 @@ class DependencyParser:
                 class_component = self.components[class_id]
                 for method_id in method_ids:
                     class_component.depends_on.add(method_id)
+    # --- ADD CLASS METHOD DEPENDENCIES END ---
 
     def save_dependency_graph(self, output_path: str):
         """Save the dependency graph to a JSON file."""
