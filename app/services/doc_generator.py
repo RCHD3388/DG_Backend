@@ -67,7 +67,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         await redis_client.hset(f"task:{task_id}", "status_detail", TaskStatusDetail.PARSING_FILES.value)
         
         logger.info(f"[{task_id}] Parsing repository at {project_extract_path}")
-        parser = DependencyParser(current_repo_path)
+        parser = DependencyParser(current_repo_path, task_id)
         
         relevant_files = parser.get_relevant_files()
         relative_file_paths = [str(p.relative_to(current_repo_path)) for p in relevant_files]

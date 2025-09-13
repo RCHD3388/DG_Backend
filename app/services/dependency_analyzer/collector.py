@@ -17,7 +17,7 @@ STANDARD_MODULES = {
 }
 EXCLUDED_NAMES = {'self', 'cls'}
 
-class SecondaryImportCollector(ast.NodeVisitor):
+class ImportCollector(ast.NodeVisitor):
     """Collects secondary import statements from Python code."""
     
     def __init__(self):
@@ -43,7 +43,7 @@ class SecondaryImportCollector(ast.NodeVisitor):
         
         self.generic_visit(node)
 
-class SecondaryDependencyCollector(ast.NodeVisitor):
+class DependencyCollector(ast.NodeVisitor):
     """
     Collects dependencies between code components by analyzing
     attribute access, function calls, and class references.
@@ -63,6 +63,9 @@ class SecondaryDependencyCollector(ast.NodeVisitor):
 
         # Track local variables defined in the current context
         self.local_variables = set()
+
+        # Track local variables as aliases
+        self.local_aliases = {}
 
         print(f"Imports: {self.imports}")
         print(f"Wildcard Symbols: {self.wildcard_symbols}\n")
@@ -111,11 +114,7 @@ class SecondaryDependencyCollector(ast.NodeVisitor):
         self._current_class = old_class
     
     def visit_Assign(self, node: ast.Assign):
-        """Track local variable assignments."""
-        for target in node.targets:
-            if isinstance(target, ast.Name):
-                # Add to local variables
-                self.local_variables.add(target.id)
+        
         self.generic_visit(node)
     
     def visit_Call(self, node: ast.Call):

@@ -12,6 +12,7 @@ process_outputs/
 .venv
 env/
 venv/
+pycg-venv/
 
 # User-specific files
 .userprefs

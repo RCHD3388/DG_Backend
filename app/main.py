@@ -15,6 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.schemas.response_schema import StandardResponse, ErrorDetail
 
 import redis
+from app.core.config import initialize_output_directories
 from app.core.redis_client import get_redis_client, redis_pool
 
 # --- LIFESPAN EVENT MANAGER ---
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
     Mengelola event saat startup dan shutdown aplikasi.
     """
     # --- Kode yang dijalankan SEBELUM aplikasi mulai menerima request (Startup) ---
+    initialize_output_directories()
     print("--- Checking Redis connection... ---")
     redis_client = get_redis_client()
     UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
