@@ -8,7 +8,8 @@ from starlette.responses import JSONResponse
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from app.schemas.response.file_schema import ClearDirectoryPartialFailData, ClearDirectorySuccessData, FileListSuccessData, UploadSuccessData, FileMetadata
 from app.schemas.response_schema import ErrorDetail, MessageResponseData, StandardResponse
-from app.core.config import UPLOAD_DIRECTORY, EXTRACTED_PROJECTS_DIR
+from app.core.config import UPLOAD_DIRECTORY, EXTRACTED_PROJECTS_DIR, DEPENDENCY_GRAPHS_DIR, COLLECTED_COMPONENTS_DIR, PYCG_OUTPUT_DIR
+from app.utils.file_utils import clear_directory_contents
 
 # Router khusus untuk fungsionalitas terkait file
 router = APIRouter(
@@ -90,6 +91,75 @@ async def get_all_uploaded_files():
     return StandardResponse(data=response_data)
 
 @router.delete(
+    "/extracted_projects", 
+    status_code=200,
+    response_model=StandardResponse[ClearDirectorySuccessData]
+)
+async def clear_extracted_projects_directory():
+    deleted_items_count = 0
+    errors = []
+
+    if not EXTRACTED_PROJECTS_DIR.exists():
+        response_data = ClearDirectorySuccessData(
+            message=f"Directory '{EXTRACTED_PROJECTS_DIR.name}' not found, nothing to clear."
+        )
+        return StandardResponse(data=response_data)
+
+    delete_uploaded_file = clear_directory_contents(EXTRACTED_PROJECTS_DIR)
+    
+    success_data = ClearDirectorySuccessData(
+        message=f"Successfully cleared the '{EXTRACTED_PROJECTS_DIR.name}' directory.",
+        deleted_items_count=deleted_items_count
+    )
+    return StandardResponse(data=success_data)
+
+@router.delete(
+    "/dependency_graphs", 
+    status_code=200,
+    response_model=StandardResponse[ClearDirectorySuccessData]
+)
+async def clear_dependency_graphs_directory():
+    deleted_items_count = 0
+    errors = []
+
+    if not DEPENDENCY_GRAPHS_DIR.exists():
+        response_data = ClearDirectorySuccessData(
+            message=f"Directory '{DEPENDENCY_GRAPHS_DIR.name}' not found, nothing to clear."
+        )
+        return StandardResponse(data=response_data)
+
+    delete_uploaded_file = clear_directory_contents(DEPENDENCY_GRAPHS_DIR)
+    
+    success_data = ClearDirectorySuccessData(
+        message=f"Successfully cleared the '{DEPENDENCY_GRAPHS_DIR.name}' directory.",
+        deleted_items_count=deleted_items_count
+    )
+    return StandardResponse(data=success_data)
+
+@router.delete(
+    "/pycg_outputs", 
+    status_code=200,
+    response_model=StandardResponse[ClearDirectorySuccessData]
+)
+async def clear_pycg_outputs_directory():
+    deleted_items_count = 0
+    errors = []
+
+    if not PYCG_OUTPUT_DIR.exists():
+        response_data = ClearDirectorySuccessData(
+            message=f"Directory '{PYCG_OUTPUT_DIR.name}' not found, nothing to clear."
+        )
+        return StandardResponse(data=response_data)
+
+    delete_uploaded_file = clear_directory_contents(PYCG_OUTPUT_DIR)
+    
+    success_data = ClearDirectorySuccessData(
+        message=f"Successfully cleared the '{PYCG_OUTPUT_DIR.name}' directory.",
+        deleted_items_count=deleted_items_count
+    )
+    return StandardResponse(data=success_data)
+
+@router.delete(
     "/{file_name}",
     # Define the response model for a successful operation
     response_model=StandardResponse[MessageResponseData],
@@ -117,66 +187,3 @@ async def delete_uploaded_file(file_name: str):
         message=f"File '{file_name}' was successfully deleted."
     )
     return StandardResponse(data=response_data)
-@router.delete(
-    "/clear-extracted-projects", 
-    status_code=200,
-    response_model=StandardResponse[ClearDirectorySuccessData]
-)
-async def clear_extracted_projects_directory():
-    """
-    Deletes ALL content from the 'extracted_projects' directory,
-    but leaves the directory itself.
-    
-    Useful for cleaning up remnants of previous analysis processes.
-    """
-    deleted_items_count = 0
-    errors = []
-
-    if not EXTRACTED_PROJECTS_DIR.exists():
-        response_data = ClearDirectorySuccessData(
-            message=f"Directory '{EXTRACTED_PROJECTS_DIR.name}' not found, nothing to clear."
-        )
-        return StandardResponse(data=response_data)
-
-    for path in EXTRACTED_PROJECTS_DIR.iterdir():
-        try:
-            if path.is_dir():
-                shutil.rmtree(path)
-            elif path.is_file():
-                path.unlink()
-            
-            deleted_items_count += 1
-            
-        except Exception as e:
-            error_message = f"Failed to delete '{path.name}': {e}"
-            print(error_message)
-            errors.append(error_message)
-
-    if errors:
-        partial_fail_data = ClearDirectoryPartialFailData(
-            message="Cleanup finished, but some errors occurred.",
-            deleted_items_count=deleted_items_count,
-            errors=errors
-        )
-        
-        # Since this isn't a simple HTTPException, we build the response manually
-        # and use JSONResponse to send it with the correct status code.
-        error_response = StandardResponse(
-            success=False,
-            data=partial_fail_data,
-            error=ErrorDetail(
-                code=507, # 507 Insufficient Storage can imply a failed cleanup
-                type="PartialCleanupFailure",
-                message="One or more items could not be deleted, possibly due to file locks."
-            )
-        )
-        return JSONResponse(
-            status_code=507,
-            content=error_response.model_dump(exclude_none=True)
-        )
-    
-    success_data = ClearDirectorySuccessData(
-        message=f"Successfully cleared the '{EXTRACTED_PROJECTS_DIR.name}' directory.",
-        deleted_items_count=deleted_items_count
-    )
-    return StandardResponse(data=success_data)

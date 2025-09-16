@@ -8,25 +8,27 @@ from pathlib import Path
 from dataclasses import dataclass, field
 
 from .resolver import DependencyResolver, PrimaryDependencyResolver, AlternativeDependencyResolver
-from .models import CodeComponent, ResolverStrategy
-from .utils import file_to_module_path, add_parent_to_nodes
+from app.schemas.models.code_component_schema import CodeComponent, ResolverStrategy
+from app.utils.dependency_analyzer_utils import file_to_module_path, add_parent_to_nodes
 from app.services.dependency_analyzer.collector import DependencyCollector, ImportCollector
 logger = logging.getLogger("Dependency Parser")
 
 
 class DependencyParser:
-    def __init__(self, repo_path: Path, task_id: str, resolver_strategy: ResolverStrategy = ResolverStrategy.SECOND):
+    def __init__(self, repo_path: Path, task_id: str, root_module_name: str, resolver_strategy: ResolverStrategy = ResolverStrategy.SECOND):
         self.repo_path = repo_path
         self.relevant_files: List[Path] = []
         self.components: Dict[str, CodeComponent] = {}
         self.dependency_graph: Dict[str, List[str]] = {}
         self.modules: Set[str] = set()
+
         self.task_id = task_id
+        self.root_module_name = root_module_name
         self.resolver: DependencyResolver = self._get_resolver(resolver_strategy)
 
     def _get_resolver(self, strategy: ResolverStrategy) -> DependencyResolver:
         """Factory method to select the dependency resolution strategy."""
-        resolver_args = (self.components, self.modules, self.repo_path, self.task_id)
+        resolver_args = (self.components, self.modules, self.repo_path, self.task_id, self.root_module_name)
         if strategy == ResolverStrategy.FIRST:
             return PrimaryDependencyResolver(*resolver_args)
         elif strategy == ResolverStrategy.SECOND:

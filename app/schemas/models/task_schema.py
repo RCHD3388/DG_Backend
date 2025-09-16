@@ -29,6 +29,7 @@ class TaskStatus(str, Enum):
 class Task(BaseModel):
     task_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     source_file: str
+    root_module_name: str = ""
     
     status: str = TaskStatus.PENDING.value
     status_detail: str = TaskStatusDetail.QUEUED.value

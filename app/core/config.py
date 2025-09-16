@@ -30,12 +30,12 @@ PROCESS_OUTPUT_DIR = APP_BASE_DIR / "process_outputs"
 
 # Direktori untuk menyimpan file yang di-upload, relatif terhadap root proyek
 UPLOAD_DIRECTORY = APP_BASE_DIR / "uploaded_files"
-ANALYZE_DIRECTORY = PROCESS_OUTPUT_DIR / "analyze_results"
 EXTRACTED_PROJECTS_DIR = APP_BASE_DIR / "extracted_projects"
 
 DEPENDENCY_GRAPHS_DIR = PROCESS_OUTPUT_DIR / "dependency_graphs"
 COLLECTED_COMPONENTS_DIR = PROCESS_OUTPUT_DIR / "collected_components"
 PYCG_OUTPUT_DIR = PROCESS_OUTPUT_DIR / "pycg_outputs"
+ANALYZE_DIRECTORY = PROCESS_OUTPUT_DIR / "analyze_results"
 
 def initialize_output_directories():
     """
@@ -50,7 +50,8 @@ def initialize_output_directories():
     dirs_to_create = [
         DEPENDENCY_GRAPHS_DIR,
         COLLECTED_COMPONENTS_DIR,
-        PYCG_OUTPUT_DIR
+        PYCG_OUTPUT_DIR,
+        # ANALYZE_DIRECTORY
     ]
     
     try:

@@ -6,7 +6,7 @@ from flask import json
 import redis.asyncio as redis
 
 # --- IMPOR MODEL UTAMA KITA ---
-from app.schemas.task_schema import Task
+from app.schemas.models.task_schema import Task
 from app.core.redis_client import get_redis_client
 
 class ConnectionManager:

@@ -8,7 +8,7 @@ from starlette.responses import JSONResponse
 from fastapi import APIRouter, File, UploadFile, HTTPException, WebSocket, WebSocketDisconnect
 import redis
 from fastapi import Depends
-from app.schemas.task_schema import Task
+from app.schemas.models.task_schema import Task
 from app.core.websocket_manager import websocket_manager
 from app.schemas.response.task_schema import RedisClearSuccessData
 from app.schemas.response_schema import StandardResponse
@@ -22,7 +22,7 @@ router = APIRouter(
 )
 
 @router.delete(
-    "/clear-all", 
+    "/", 
     status_code=200,
     response_model=StandardResponse[RedisClearSuccessData]
 )

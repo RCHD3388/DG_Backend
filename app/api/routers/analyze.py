@@ -15,10 +15,10 @@ from app.services.doc_generator import generate_documentation_for_project
 from app.core.config import settings
 from app.core.redis_client import get_redis_client
 
-from app.schemas.task_schema import Task
+from app.schemas.models.task_schema import Task
 import redis
 from enum import Enum
-from app.schemas.task_schema import TaskStatus, TaskStatusDetail
+from app.schemas.models.task_schema import TaskStatus, TaskStatusDetail
 
 router = APIRouter(
     prefix="/analyze",
