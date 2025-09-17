@@ -271,7 +271,7 @@ class DependencyParser:
                     class_component.depends_on.add(method_id)
     # --- ADD CLASS METHOD DEPENDENCIES END ---
 
-    def save_dependency_graph(self, output_path: str):
+    def save_components(self, output_path: str):
         """Save the dependency graph to a JSON file."""
         # Convert to serializable format
         serializable_components = {

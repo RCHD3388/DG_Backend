@@ -41,5 +41,6 @@ class Task(BaseModel):
     discovered_files: Optional[List[str]] = []
     
     # Hasil atau Error
+    result_dependency_graph: str = ""
     result_url: str = ""
     error: str = ""

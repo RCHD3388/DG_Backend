@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 from app.core.websocket_manager import websocket_manager
 from app.schemas.response.analyze_schema import AnalysisStartSuccessData
 from app.schemas.response_schema import StandardResponse
-from app.core.config import UPLOAD_DIRECTORY
+from app.core.config import UPLOAD_DIRECTORY, DEPENDENCY_GRAPHS_DIR, COLLECTED_COMPONENTS_DIR
 from app.services.doc_generator import generate_documentation_for_project
 from app.core.config import settings
 from app.core.redis_client import get_redis_client
@@ -81,10 +81,37 @@ async def analyze_repository(
     return StandardResponse(data=response_data)
 
 # --- Endpoint download-result tidak berubah, sudah menangani tipe file .docx ---
-@router.get("/download-result/{result_filename}")
+@router.get("/download_result/{result_filename}")
 async def download_analysis_result(result_filename: str):
     RESULTS_DIRECTORY = UPLOAD_DIRECTORY / "analysis_results"
     file_path = RESULTS_DIRECTORY / result_filename
+
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail=f"File hasil '{result_filename}' tidak ditemukan.")
+    
+    media_type = "application/octet-stream" 
+    if result_filename.endswith(".json"):
+        media_type = "application/json"
+    elif result_filename.endswith(".png"):
+        media_type = "image/png"
+    elif result_filename.endswith(".svg"):
+        media_type = "image/svg+xml"
+    elif result_filename.endswith(".md"):
+        media_type = "text/markdown"
+    elif result_filename.endswith(".pdf"):
+        media_type = "application/pdf"
+    elif result_filename.endswith(".docx"):
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+    return FileResponse(
+        path=file_path,
+        media_type=media_type,
+        filename=result_filename,
+    )
+
+@router.get("/download_components/{result_filename}")
+async def download_dependency_result(result_filename: str):
+    file_path = COLLECTED_COMPONENTS_DIR / result_filename
 
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=404, detail=f"File hasil '{result_filename}' tidak ditemukan.")

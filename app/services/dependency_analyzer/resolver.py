@@ -341,7 +341,7 @@ class AlternativeDependencyResolver(DependencyResolver):
                                     continue    
                         # === special steps end ===
                     
-
-                    component.depends_on.add(normalized_callee)
+                    if normalized_callee != component.id:
+                        component.depends_on.add(normalized_callee)
 
         logger.info("Finished mapping PyCG results.")

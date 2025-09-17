@@ -91,6 +91,32 @@ async def get_all_uploaded_files():
     return StandardResponse(data=response_data)
 
 @router.delete(
+    "/", 
+    status_code=200,
+    response_model=StandardResponse[ClearDirectorySuccessData]
+)
+async def clear_extracted_projects_directory():
+    deleted_items_count = 0
+    errors = []
+
+    if not EXTRACTED_PROJECTS_DIR.exists() or not DEPENDENCY_GRAPHS_DIR.exists() or not PYCG_OUTPUT_DIR.exists():
+        response_data = ClearDirectorySuccessData(
+            message=f"Some directory not found, nothing to clear."
+        )
+        return StandardResponse(data=response_data)
+
+    deleted_items_count += clear_directory_contents(EXTRACTED_PROJECTS_DIR)
+    deleted_items_count += clear_directory_contents(DEPENDENCY_GRAPHS_DIR)
+    deleted_items_count += clear_directory_contents(PYCG_OUTPUT_DIR)
+    
+    success_data = ClearDirectorySuccessData(
+        message=f"Successfully cleared all the directory files",
+        deleted_items_count=deleted_items_count
+    )
+    return StandardResponse(data=success_data)
+
+
+@router.delete(
     "/extracted_projects", 
     status_code=200,
     response_model=StandardResponse[ClearDirectorySuccessData]
@@ -105,7 +131,7 @@ async def clear_extracted_projects_directory():
         )
         return StandardResponse(data=response_data)
 
-    delete_uploaded_file = clear_directory_contents(EXTRACTED_PROJECTS_DIR)
+    deleted_items_count = clear_directory_contents(EXTRACTED_PROJECTS_DIR)
     
     success_data = ClearDirectorySuccessData(
         message=f"Successfully cleared the '{EXTRACTED_PROJECTS_DIR.name}' directory.",
@@ -128,7 +154,7 @@ async def clear_dependency_graphs_directory():
         )
         return StandardResponse(data=response_data)
 
-    delete_uploaded_file = clear_directory_contents(DEPENDENCY_GRAPHS_DIR)
+    deleted_items_count = clear_directory_contents(DEPENDENCY_GRAPHS_DIR)
     
     success_data = ClearDirectorySuccessData(
         message=f"Successfully cleared the '{DEPENDENCY_GRAPHS_DIR.name}' directory.",
@@ -151,7 +177,7 @@ async def clear_pycg_outputs_directory():
         )
         return StandardResponse(data=response_data)
 
-    delete_uploaded_file = clear_directory_contents(PYCG_OUTPUT_DIR)
+    deleted_items_count = clear_directory_contents(PYCG_OUTPUT_DIR)
     
     success_data = ClearDirectorySuccessData(
         message=f"Successfully cleared the '{PYCG_OUTPUT_DIR.name}' directory.",
