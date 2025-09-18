@@ -52,7 +52,7 @@ class DependencyParser:
             self._parse_file(str(file_path), str(relative_path), module_path)
 
         # SECOND PASS: build dependencies
-        self.resolver.resolve()
+        self.resolver.resolve(self.relevant_files)
 
         # THIRD PASS: class and method dependencies
         self._add_class_method_dependencies()
@@ -65,17 +65,18 @@ class DependencyParser:
 
         all_py_files = self.repo_path.rglob('*.py')
         current_relevant_files = []
+
+        exclude_dirs = {"venv", ".venv", "pycg-venv", "__pycache__", "tests", "test", "__MACOSX", "__macosx"}
+
         for file_path in all_py_files:
             path_parts = {part.lower() for part in file_path.parts}
         
             # Kondisi untuk mengecualikan file
-            is_in_venv = "venv" in path_parts
-            is_in_pycache = "__pycache__" in path_parts
-            is_in_tests_dir = "tests" in path_parts or "test" in path_parts
             is_test_file = file_path.name.startswith("test_") or file_path.name.endswith("_test.py")
+            is_excluded_dir = any(part in exclude_dirs for part in path_parts)
 
             # Jika tidak ada kondisi pengecualian yang terpenuhi, tambahkan file ke list
-            if not (is_in_venv or is_in_pycache or is_in_tests_dir or is_test_file):
+            if not (is_test_file or is_excluded_dir):
                 current_relevant_files.append(file_path)
                 # logging.info(f"{file_path}")
 

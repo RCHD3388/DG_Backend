@@ -1,7 +1,7 @@
 # app/services/dependency_analyzer/resolvers.py
 
 from abc import ABC, abstractmethod
-from typing import Dict, Set
+from typing import Dict, Set, List
 from pathlib import Path
 import ast
 import logging
@@ -31,7 +31,7 @@ class DependencyResolver(ABC):
         self.root_module_name = root_module_name
 
     @abstractmethod
-    def resolve(self) -> None:
+    def resolve(self, relevant_files: List[Path]) -> None:
         """
         The main method to perform dependency resolution.
         This method should iterate through the components and update their
@@ -44,7 +44,7 @@ class PrimaryDependencyResolver(DependencyResolver):
     Resolves dependencies using the primary, detailed analysis method.
     (Ini adalah logika dari kode Anda saat ini)
     """
-    def resolve(self) -> None:
+    def resolve(self, relevant_files: List[Path]) -> None:
         for component_id, component in self.components.items():
             file_path = component.file_path
 
@@ -139,21 +139,15 @@ class AlternativeDependencyResolver(DependencyResolver):
     """
     Resolves dependencies using an alternative, perhaps faster or simpler, method.
     """
-    def resolve(self) -> None:
+    def resolve(self, relevant_files: List[Path]) -> None:
         print("\nResolving dependencies using an alternative method...")
         print(f"REPO PATH : {self.repo_path}")
 
-        exclude_dirs = {"venv", ".venv", "pycg-venv", "__pycache__", "tests", "test"}
-
         entry_points = [
-            # Konversi ke string karena subprocess membutuhkan string, bukan objek Path
-            str(p) for p in self.repo_path.rglob('*.py')
-            # Filter 1: Jangan sertakan file di dalam direktori yang dikecualikan
-            if not any(part in exclude_dirs for part in p.parts)
-            # Filter 2: Jangan sertakan file pengujian umum
-            and not p.name.startswith("test_")
-            and not p.name.endswith("_test.py")
+            str(p) for p in relevant_files
         ]
+
+        print(entry_points)
 
         if not entry_points:
             logger.warning(f"No Python files found to analyze in {self.repo_path} after filtering.")

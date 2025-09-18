@@ -31,7 +31,7 @@ def extract_zip(file_path: Path, extract_to: Path):
         extract_to.mkdir(exist_ok=True)
         shutil.copy(file_path, extract_to / file_path.name)
     
-    items_inside = list(extract_to.iterdir())
+    items_inside = [item for item in extract_to.iterdir() if item.name != "__MACOSX"]
     
     if len(items_inside) == 0:
         return None
@@ -87,6 +87,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         parser = DependencyParser(current_repo_path, task_id, root_module_name)
         
         relevant_files = parser.get_relevant_files()
+        
         relative_file_paths = [str(p.relative_to(current_repo_path)) for p in relevant_files]
         
         files_update = {
