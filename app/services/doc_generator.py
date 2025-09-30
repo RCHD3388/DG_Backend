@@ -13,6 +13,7 @@ from app.core.config import COLLECTED_COMPONENTS_DIR, EXTRACTED_PROJECTS_DIR, DE
 from app.schemas.models.task_schema import TaskStatus, TaskStatusDetail
 from app.services.dependency_analyzer.parser import DependencyParser
 from app.services.topological_sort.topological import build_graph_from_components, get_topological_sort_from_dependencies
+from app.services.docgen.orchestrator import Orchestrator
 
 logging.basicConfig(
     level=logging.INFO,

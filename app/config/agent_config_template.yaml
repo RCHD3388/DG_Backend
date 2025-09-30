@@ -1,0 +1,26 @@
+# Konfigurasi LLM default, akan digunakan jika tidak ada konfigurasi spesifik agen
+llm:
+  type: google  # 'google' atau 'openai', dll.
+  model: "gemini-2.5-flash"
+  api_key: "" # Mengambil dari environment variable
+  temperature: 0.1
+  max_output_tokens: 2048
+
+# Konfigurasi LLM spesifik per agen (opsional)
+# Jika Reader butuh model yang lebih kuat, kita bisa definisikan di sini
+agent_llms:
+  reader:
+    type: google
+    model: "gemini-2.5-flash" # Reader menggunakan model yang lebih kuat
+    api_key: ""
+    temperature: 0.0 # Lebih deterministik untuk analisa
+    max_output_tokens: 1024
+  # writer:
+  #   type: openai
+  #   model: "gpt-4o"
+  #   ...
+
+# Konfigurasi alur kerja untuk Orchestrator
+flow_control:
+  max_reader_search_attempts: 3
+  max_verifier_rejections: 2

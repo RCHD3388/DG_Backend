@@ -13,6 +13,7 @@ process_outputs/
 env/
 venv/
 pycg-venv/
+agent_config.yaml
 
 # User-specific files
 .userprefs

@@ -37,6 +37,9 @@ COLLECTED_COMPONENTS_DIR = PROCESS_OUTPUT_DIR / "collected_components"
 PYCG_OUTPUT_DIR = PROCESS_OUTPUT_DIR / "pycg_outputs"
 ANALYZE_DIRECTORY = PROCESS_OUTPUT_DIR / "analyze_results"
 
+# Config YAML
+YAML_CONFIG_PATH = APP_BASE_DIR / "config/agent_config.yaml"
+
 def initialize_output_directories():
     """
     Creates the necessary output directories for the application if they don't exist.
