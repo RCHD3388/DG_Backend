@@ -13,7 +13,7 @@ class Reader(BaseAgent):
     """Agen Reader yang diimplementasikan menggunakan LangChain."""
     
     def __init__(self, config_path: Optional[str] = None):
-        super().__init__("Reader", config_path)
+        super().__init__("reader", config_path)
         
         self.system_prompt = """You are a Reader agent responsible for determining if more context
         is needed to generate a high-quality docstring. You should analyze the code component and
@@ -115,7 +115,7 @@ class Reader(BaseAgent):
         Menganalisa kode. Perhatikan bahwa ia TIDAK membersihkan memorinya sendiri.
         Orchestrator yang bertanggung jawab untuk itu.
         """
-        print(f"--- READER ---")
+        print(f"[Reader]: Run - Analysing component to determine info needs ...")
         
         # 1. Susun pesan user berdasarkan state saat ini
         task_description = f"""

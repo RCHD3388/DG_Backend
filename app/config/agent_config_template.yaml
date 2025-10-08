@@ -15,6 +15,24 @@ agent_llms:
     api_key: ""
     temperature: 0.0 # Lebih deterministik untuk analisa
     max_output_tokens: 1024
+  searcher:
+    type: google
+    model: "gemini-2.5-flash" # Reader menggunakan model yang lebih kuat
+    api_key: ""
+    temperature: 0.0 # Lebih deterministik untuk analisa
+    max_output_tokens: 1024
+  writer:
+    type: google
+    model: "gemini-2.5-flash" # Reader menggunakan model yang lebih kuat
+    api_key: ""
+    temperature: 0.0 # Lebih deterministik untuk analisa
+    max_output_tokens: 1024
+  verifier:
+    type: google
+    model: "gemini-2.5-flash" # Reader menggunakan model yang lebih kuat
+    api_key: ""
+    temperature: 0.0 # Lebih deterministik untuk analisa
+    max_output_tokens: 1024
   # writer:
   #   type: openai
   #   model: "gpt-4o"
