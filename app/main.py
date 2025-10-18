@@ -13,6 +13,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.schemas.response_schema import StandardResponse, ErrorDetail
+from app.core.mongo_client import connect_to_mongo, close_mongo_connection
 
 import redis
 from app.core.config import initialize_output_directories
@@ -26,6 +27,7 @@ async def lifespan(app: FastAPI):
     """
     # --- Kode yang dijalankan SEBELUM aplikasi mulai menerima request (Startup) ---
     initialize_output_directories()
+    
     print("--- Checking Redis connection... ---")
     redis_client = get_redis_client()
     UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
@@ -35,13 +37,20 @@ async def lifespan(app: FastAPI):
         print("✅ Redis connection successful!")
     except redis.exceptions.ConnectionError as e:
         print(f"❌ Redis connection failed: {e}")
+        
+    try:
+        connect_to_mongo()
+        print("✅ MongoDB connection successful!")
+    except Exception as e:
+        print(f"❌ MongoDB connection failed: {e}")
     
     yield # Aplikasi sekarang siap dan akan berjalan
 
     # --- Kode yang dijalankan SETELAH aplikasi berhenti (Shutdown) ---
-    print("--- Closing Redis connection... ---")
+    print("--- Closing ... ---")
     await redis_pool.disconnect()
-    print("🔌 Redis connection closed.")
+    close_mongo_connection()
+    print("🔌 Closed.")
 
 # Inisialisasi aplikasi FastAPI
 app = FastAPI(

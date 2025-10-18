@@ -1,10 +1,12 @@
 # utils/state.py
 
 from typing import TypedDict, Optional, Dict, Any, List
+from app.schemas.models.code_component_schema import CodeComponent
 
 class AgentState(TypedDict):
     """Mendefinisikan state yang mengalir melalui orchestrator."""
     # Input
+    component: CodeComponent
     focal_component: str
     docstring: Optional[str] 
     

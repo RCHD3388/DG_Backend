@@ -33,8 +33,8 @@ def calculate_fibonacci(n):
     print("HASIL AKHIR")
     print("="*50)
     
-    print("\n--- Respons dari Reader ---")
-    print(output["final_state"]["reader_response"])
+    # print("\n--- Respons dari Reader ---")
+    # print(output["final_state"]["reader_response"])
 
     print("\n--- Statistik Penggunaan Token ---")
     print(json.dumps(output["usage_stats"], indent=2))

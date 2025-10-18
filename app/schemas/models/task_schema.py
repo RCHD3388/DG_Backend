@@ -2,8 +2,9 @@
 
 from pydantic import BaseModel, Field
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uuid
+from app.schemas.models.code_component_schema import CodeComponent
 
 # --- Mapping untuk Status Detail ---
 # Menggunakan Enum memastikan kita hanya menggunakan nilai yang valid dan terdefinisi.
@@ -39,6 +40,7 @@ class Task(BaseModel):
     current_process: int = 0
 
     discovered_files: Optional[List[str]] = []
+    components: Optional[Dict[str, Any]] = {}
     
     # Hasil atau Error
     result_dependency_graph: str = ""

@@ -4,8 +4,9 @@ import inspect
 import logging
 import builtins
 import sys
+from app.utils.CustomLogger import CustomLogger
 
-logger = logging.getLogger(__name__)
+logger = CustomLogger("Collector")
 
 # Built-in Python types and modules that should be excluded from dependencies
 BUILTIN_TYPES = {name for name in dir(builtins)}

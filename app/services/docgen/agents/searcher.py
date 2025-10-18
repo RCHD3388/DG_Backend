@@ -2,103 +2,115 @@
 
 from typing import Optional, Dict, List, Any
 import re
+import json
 
 from app.services.docgen.base import BaseAgent
 from app.services.docgen.state import AgentState
+from app.services.docgen.tools.InternalCodeParser import InternalCodeParser
+from app.core.config import DUMMY_TESTING_DIRECTORY
+
 
 class Searcher(BaseAgent):
     """
     Agen Searcher yang bertanggung jawab untuk mengumpulkan konteks.
     Ia bisa melakukan pencarian internal (analisa statis) dan eksternal (via LLM).
     """
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: Optional[str] = None, internalCodeParser: InternalCodeParser = None, max_used_by_samples: int = 2, max_context_token: int = 6000):
         # Inisialisasi sebagai agen 'Searcher' untuk mendapatkan LLM yang sesuai dari config
         super().__init__("searcher", config_path)
-
-    # --- Bagian Pencarian Internal (Analisa Statis) ---
-    def _find_dependencies(self, focal_component: str) -> Dict[str, str]:
-        """
-        (IMPLEMENTASI DUMMY) Mencari docstring dari dependensi.
-        Ini akan menggunakan analisa AST di implementasi nyata.
-        """
-        print("    -> [Searcher] (Dummy) Mencari docstring dependensi...")
-        # TODO: Ganti dengan logika pencarian AST.
-        return {
-            "another_module.utility_function": "'''Ini adalah docstring untuk utility_function.'''",
-            "self.helper_method": "'''Docstring untuk helper_method di dalam kelas yang sama.'''"
-        }
-
-    def _find_called_by(self, focal_component: str) -> List[str]:
-        """
-        (IMPLEMENTASI DUMMY) Mencari contoh penggunaan komponen.
-        Ini akan menggunakan analisa AST di implementasi nyata.
-        """
-        print("    -> [Searcher] (Dummy) Mencari contoh penggunaan (called by)...")
-        # TODO: Ganti dengan logika pencarian referensi.
-        return [
-            "result = calculate_fibonacci(n=10)",
-            "if config.get('use_fib'):\n    fib_val = calculate_fibonacci(user_input)"
-        ]
+        self.internalCodeParser = internalCodeParser
+        self.all_dependencies = {}
+        self.all_used_by = {}
+        self.max_used_by_samples = max_used_by_samples
+        self.max_context_token = max_context_token
+        self.gathered_data = {}
 
     def _run_internal_search(self, state: AgentState) -> str:
         """Menjalankan semua pencarian internal dan memformat hasilnya."""
         focal_component = state["focal_component"]
         dependencies = self._find_dependencies(focal_component)
-        called_by = self._find_called_by(focal_component)
+        used_by = self._find_used_by(focal_component)
         
         context_parts = []
         if dependencies:
             dep_str = "\n".join([f"<FUNCTION NAME='{name}'>\n{doc}\n</FUNCTION>" for name, doc in dependencies.items()])
             context_parts.append(f"<DEPENDENCIES>\n{dep_str}\n</DEPENDENCIES>")
             
-        if called_by:
-            cb_str = "\n".join([f"<USAGE>\n{code}\n</USAGE>" for code in called_by])
-            context_parts.append(f"<CALLED_BY>\n{cb_str}\n</CALLED_BY>")
+        if used_by:
+            cb_str = "\n".join([f"<USAGE>\n{code}\n</USAGE>" for code in used_by])
+            context_parts.append(f"<used_by>\n{cb_str}\n</used_by>")
             
         return "\n" + "\n".join(context_parts) if context_parts else ""
 
-    # --- Bagian Pencarian Eksternal (Menggunakan LLM) ---
-
-    def _parse_reader_request(self, reader_response: str, config: Dict) -> Dict[str, Any]:
-        """
-        Menggunakan LLM untuk mem-parsing permintaan XML dari Reader.
-        Ini adalah contoh bagaimana Searcher dapat menggunakan kemampuannya sebagai agen.
-        """
-        print("    -> [Searcher] Mem-parsing permintaan Reader menggunakan LLM...")
-        
-        # Di implementasi nyata, prompt ini akan lebih kuat.
-        prompt = (
-            f"Ekstrak semua item dari tag <QUERY> di dalam teks XML berikut. "
-            f"Kembalikan sebagai daftar JSON. Jika tidak ada, kembalikan daftar kosong.\n\n"
-            f"{reader_response}"
-        )
-        
-        # Gunakan 'invoke' dari LLM yang diwarisi dari BaseAgent
-        # Kita tidak perlu mengelola memori di sini, ini adalah tugas sekali jalan.
-        response = self.llm.invoke(prompt, config=config)
-        
-        # TODO: Parsing JSON yang lebih kuat dari respons LLM.
-        try:
-            # Misalkan LLM mengembalikan string seperti '["query1", "query2"]'
-            return {"external_queries": eval(response.content)}
-        except:
-            return {"external_queries": []}
-
-    def _run_external_search(self, queries: List[str]) -> str:
-        """
-        (IMPLEMENTASI DUMMY) Menjalankan pencarian eksternal.
-        Ini akan terhubung ke API pencarian seperti Tavily, SerpAPI, dll.
-        """
-        if not queries:
-            return ""
-        
-        print(f"    -> [Searcher] (Dummy) Menjalankan pencarian eksternal untuk: {queries}")
-        # TODO: Ganti dengan logika API pencarian nyata.
-        results = [f"<EXTERNAL_RESULT QUERY='{q}'>Hasil pencarian untuk {q}...</EXTERNAL_RESULT>" for q in queries]
-        return "\n" + "\n".join(results)
 
     # --- Metode Proses Utama ---
+    def find_initial_context(self, state: AgentState) -> AgentState:
+        
+        current_all_dependencies = self.internalCodeParser.find_dependencies(state["component"].id)
+        all_used_by = self.internalCodeParser.find_called_by(state["component"].id)
+        pagerank_scores = self.internalCodeParser.find_pagerank_scores()
+        
+        # print("[Searcher] Original name: ", state["component"].id)
+        # print("[Searcher] All dependencies:", current_all_dependencies)
+        # print("[Searcher] All called by:", self.all_used_by)
+        
+        gathered_data = {
+            "internal": {
+                "class_context": None,
+                "dependencies": {},
+                "used_by": []
+            },
+            "external": {
+                # "question query": "query result"
+            }
+        }
+        
+        # Sort dependencies by pagerank
+        
+        sorted_dependencies = sorted(
+            current_all_dependencies, 
+            key=lambda dep: pagerank_scores.get(dep, 0), 
+            reverse=True
+        )
+        
+        # 1. Gathering dependencies information
+        for dep_id in sorted_dependencies:
+            context_content = self.internalCodeParser.get_component_docstring(dep_id)
+            context_type = "documentation"
 
+            # Heuristik #1: Fallback ke kode sumber jika docstring tidak memadai
+            if not context_content or len(context_content) < 15:
+                print(f"    -> [Searcher] Docstring untuk '{dep_id}' tidak ada/pendek, mengambil kode sumber.")
+                context_content = self.internalCodeParser.get_component_source_code(dep_id)
+                context_type = "source_code"
+            
+            # Masukkan hasil ke dalam dictionary 'dependencies'
+            gathered_data["internal"]["dependencies"][dep_id] = {
+                "id": dep_id,
+                "type": context_type,
+                "content": context_content,
+                "pagerank_score": pagerank_scores.get(dep_id, 0)
+            }
+            
+        # 2. Gathering called by information
+        # 2a. Gathering class context
+        if state['component'].component_type == "method":
+            class_skeleton = self.internalCodeParser.get_class_skeleton(state["component"].id)
+            gathered_data["internal"]["class_context"] = {
+                "is_method": True,
+                "content": class_skeleton
+            }
+        # 2b. Gathering called by information
+        if all_used_by:
+            used_by_resources = self.internalCodeParser.find_called_by_snippet(state["component"].id, self.max_used_by_samples) 
+            if used_by_resources and len(used_by_resources) > 0:
+                gathered_data["internal"]["used_by"].extend(used_by_resources)
+        
+        with open(DUMMY_TESTING_DIRECTORY / "searcher_gathered_data.json", "w", encoding="utf-8") as f:
+            json.dump(gathered_data, f, indent=4, ensure_ascii=False)
+        
+        return state
+    
     def process(self, state: AgentState) -> AgentState:
         """
         Titik masuk utama untuk Searcher. Ia memutuskan pencarian mana yang akan dijalankan.
@@ -121,3 +133,6 @@ class Searcher(BaseAgent):
                 state["context"] += external_context
         
         return state
+    
+    def format_search_context():
+        return

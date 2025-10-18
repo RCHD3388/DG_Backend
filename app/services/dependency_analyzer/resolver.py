@@ -15,8 +15,9 @@ from app.schemas.models.code_component_schema import CodeComponent, ResolverStra
 from app.utils.dependency_analyzer_utils import file_to_module_path, add_parent_to_nodes
 from app.core.config import settings
 from app.core.config import PYCG_OUTPUT_DIR
+from app.utils.CustomLogger import CustomLogger
 
-logger = logging.getLogger(__name__)
+logger = CustomLogger("Resolver")
 
 class DependencyResolver(ABC):
     """
@@ -132,7 +133,7 @@ class PrimaryDependencyResolver(DependencyResolver):
                     }
                 
             except (SyntaxError, UnicodeDecodeError) as e:
-                logger.warning(f"Error analyzing dependencies in {file_path}: {e}")
+                logger.warning_print(f"Error analyzing dependencies in {file_path}: {e}")
 
 
 class AlternativeDependencyResolver(DependencyResolver):
@@ -141,7 +142,6 @@ class AlternativeDependencyResolver(DependencyResolver):
     """
     def resolve(self, relevant_files: List[Path]) -> None:
         print("\nResolving dependencies using an alternative method...")
-        print(f"REPO PATH : {self.repo_path}")
 
         entry_points = [
             str(p) for p in relevant_files
@@ -150,7 +150,7 @@ class AlternativeDependencyResolver(DependencyResolver):
         print(entry_points)
 
         if not entry_points:
-            logger.warning(f"No Python files found to analyze in {self.repo_path} after filtering.")
+            print(f"[DependencyResolver] No Python files found to analyze in {self.repo_path} after filtering.")
             return
 
         output_json_path = PYCG_OUTPUT_DIR / f"{self.task_id}.json"
@@ -182,10 +182,10 @@ class AlternativeDependencyResolver(DependencyResolver):
 
             self._map_pycg_to_components(pycg_data)
 
-            logger.info("PyCG execution successful.")
+            print("[DependencyResolver] PyCG execution successful.")
 
         except FileNotFoundError:
-            logger.error(
+            logger.error_print(
                 f"PyCG executable not found at '{settings.PYCG_PYTHON_EXECUTABLE}'. "
                 "Please check the PYCG_PYTHON_EXECUTABLE path in your .env file."
             )
@@ -193,8 +193,8 @@ class AlternativeDependencyResolver(DependencyResolver):
             raise
         except subprocess.CalledProcessError as e:
             # Ini akan terjadi jika PyCG gagal (misal, error parsing)
-            logger.error(f"PyCG execution failed with return code {e.returncode}")
-            logger.error(f"PyCG stderr: {e.stderr}")
+            logger.error_print(f"PyCG execution failed with return code {e.returncode}")
+            logger.error_print(f"PyCG stderr: {e.stderr}")
             raise
     
     def _normalize_path(self, path_string: str) -> str:
@@ -338,4 +338,4 @@ class AlternativeDependencyResolver(DependencyResolver):
                     if normalized_callee != component.id:
                         component.depends_on.add(normalized_callee)
 
-        logger.info("Finished mapping PyCG results.")
+        logger.info_print("Finished mapping PyCG results.")

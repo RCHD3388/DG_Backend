@@ -3,8 +3,8 @@
 from typing import Optional, Dict, Any
 import re
 
-from .base import BaseAgent
-from .state import AgentState
+from app.services.docgen.base import BaseAgent
+from app.services.docgen.state import AgentState
 
 class Verifier(BaseAgent):
     """
@@ -94,7 +94,7 @@ class Verifier(BaseAgent):
         """
         Menjalankan proses verifikasi dan memperbarui state.
         """
-        print("--- VERIFIER ---")
+        print("[verifier]: Run - Verifying generated docstring ...")
         
         # 1. Ambil data yang relevan dari state
         focal_component = state["focal_component"]

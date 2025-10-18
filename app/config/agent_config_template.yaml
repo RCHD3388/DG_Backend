@@ -40,5 +40,5 @@ agent_llms:
 
 # Konfigurasi alur kerja untuk Orchestrator
 flow_control:
-  max_reader_search_attempts: 3
+  max_reader_search_attempts: 1
   max_verifier_rejections: 2

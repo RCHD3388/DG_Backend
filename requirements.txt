@@ -2,4 +2,5 @@
 
 fastapi[standard]
 pydantic-settings
-redis 
+redis
+pymongo

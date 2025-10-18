@@ -27,9 +27,11 @@ class CodeComponent:
     
     # Set of component IDs this component depends on
     depends_on: Set[str] = field(default_factory=set)
+    used_by: Set[str] = field(default_factory=set)
     
     # Original source code of the component
-    source_code: Optional[str] = None
+    source_code: Optional[str] = ""
+    generated_doc: Optional[str] = ""
     
     # Line numbers in the file (1-indexed)
     start_line: int = 0
@@ -49,6 +51,8 @@ class CodeComponent:
             'file_path': self.file_path,
             'relative_path': self.relative_path,
             'depends_on': list(self.depends_on),
+            'used_by': list(self.used_by),
+            'generated_doc': self.generated_doc,
             'start_line': self.start_line,
             'end_line': self.end_line,
             'has_docstring': self.has_docstring,
@@ -65,6 +69,8 @@ class CodeComponent:
             file_path=data['file_path'],
             relative_path=data['relative_path'],
             depends_on=set(data.get('depends_on', [])),
+            used_by=set(data.get('used_by', [])),
+            generated_doc=data.get('generated_doc', ""),
             start_line=data.get('start_line', 0),
             end_line=data.get('end_line', 0),
             has_docstring=data.get('has_docstring', False),

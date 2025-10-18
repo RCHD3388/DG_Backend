@@ -4,25 +4,26 @@ import zipfile
 import shutil
 import sys
 import logging
+import asyncio
+import time
 from pathlib import Path
+from datetime import timedelta
+import traceback
 
 from flask import json
 from app.core.websocket_manager import websocket_manager
 from app.core.redis_client import get_redis_client
 from app.core.config import COLLECTED_COMPONENTS_DIR, EXTRACTED_PROJECTS_DIR, DEPENDENCY_GRAPHS_DIR, PROCESS_OUTPUT_DIR
 from app.schemas.models.task_schema import TaskStatus, TaskStatusDetail
+from app.schemas.models.code_component_schema import CodeComponent
 from app.services.dependency_analyzer.parser import DependencyParser
-from app.services.topological_sort.topological import build_graph_from_components, get_topological_sort_from_dependencies
+from app.services.dependency_analyzer.topological import get_topological_sort_from_dependencies
+from app.services.dependency_analyzer.pagerank import get_pagerank_scores
 from app.services.docgen.orchestrator import Orchestrator
+from app.utils.CustomLogger import CustomLogger
+from app.services.docgen.tools.InternalCodeParser import InternalCodeParser
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger("docstring_generator")
+logger = CustomLogger("DocGenerator")
 
 def extract_zip(file_path: Path, extract_to: Path):
     if file_path.suffix == '.zip':
@@ -43,15 +44,40 @@ def extract_zip(file_path: Path, extract_to: Path):
 
 def get_project_root_name(project_root_path: Path) -> str:
     if not project_root_path or not project_root_path.is_dir():
-        logger.error(f"Invalid project root path provided: {project_root_path}")
+        logger.error_print(f"Invalid project root path provided: {project_root_path}")
         raise ValueError("Project root path must be a valid directory.")
 
     return project_root_path.name
+
+def get_component_from_file(filepath: str):
+    try:
+        # 2. Menggunakan 'with open' untuk membuka dan otomatis menutup file
+        # 'r' berarti membaca (read), 'encoding="utf-8"' untuk memastikan karakter khusus terbaca
+        with open(filepath, 'r', encoding='utf-8') as file:
+            # 3. json.load() membaca konten file dan mengubahnya menjadi tipe Python
+            data_python = json.load(file)
+            return data_python
+            
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON di file '{filepath}': {e}")
+        return {}
+
+def generate_documentation_for_component(component: CodeComponent, orchestrator: Orchestrator) -> str:
+    """
+    Fungsi pembantu untuk menghasilkan dokumentasi untuk satu komponen.
+    """
+
+    documentation_state = orchestrator.process(component=component)
+    
+    return documentation_state.get("docstring", "")
 
 async def generate_documentation_for_project(source_file_path: Path, task_id: str):
     """
     Fungsi orkestrator yang mengelola seluruh alur kerja dari awal hingga akhir.
     """
+    
+    start_time = time.time()
+    
     redis_client = get_redis_client()
     project_extract_path = EXTRACTED_PROJECTS_DIR / task_id
     
@@ -64,7 +90,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         current_repo_path = extract_zip(source_file_path, project_extract_path)
         root_module_name = get_project_root_name(current_repo_path)
 
-        print(f"[{task_id}] File extracted to {project_extract_path}")
+        print(f"[{task_id}] File extracted")
 
         # -- Create if not exists --
         dependency_graphs_dir = DEPENDENCY_GRAPHS_DIR
@@ -84,7 +110,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         }
         await redis_client.hset(f"task:{task_id}", mapping=files_update)
         
-        logger.info(f"[{task_id}] Parsing repository at {project_extract_path}")
+        print(f"[{task_id}] Parsing repository at {project_extract_path}")
         parser = DependencyParser(current_repo_path, task_id, root_module_name)
         
         relevant_files = parser.get_relevant_files()
@@ -100,27 +126,61 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         
         # 3 --- REPOSITORY PROJECT ANALYSIS ---
         components = parser.parse_repository()
+        dependency_graph = parser.build_dependency_graph_from_components()
+        
         parser.save_components(collected_components_path)
 
         analysis_update = {
             "status_detail": TaskStatusDetail.GENERATING_DOCUMENTATION.value,
-            "result_dependency_graph": collected_components_file_name
+            "result_dependency_graph": collected_components_file_name,
+            "components": json.dumps(get_component_from_file(collected_components_path))
         }
         await redis_client.hset(f"task:{task_id}", mapping=analysis_update)
         await websocket_manager.broadcast_task_update(task_id)
-
+        
         # 4 --- TOPOLOGICAL SORTING ---
-        graph = build_graph_from_components(components)
-        dependency_graph = {}
-        for component_id, deps in graph.items():
-            dependency_graph[component_id] = list(deps)
-        
-        # Topological traversal sort
-        
-        sorted_components = get_topological_sort_from_dependencies(dependency_graph)
+        diGraph = parser.get_Nx_DiGraph()
+        pagerank_scores = get_pagerank_scores(diGraph)
+        sorted_components = get_topological_sort_from_dependencies(diGraph)
+        print(sorted_components)
 
         # --- DOCUMENT GENERATION ---
-
+        internalCodeParser = InternalCodeParser(
+            repo_path=current_repo_path, 
+            components=components, 
+            dependency_graph=dependency_graph, 
+            pagerank_scores=pagerank_scores
+        )
+        
+        # Limited component_id
+        limited_component = ["core.memory.short_term.ShortTermMemory._evict_lru"]
+        
+        # Orchestrator loop - Create documentation
+        orchestrator = Orchestrator(repo_path=current_repo_path, internalCodeParser=internalCodeParser)
+        for component_id in sorted_components:
+            component = components[component_id]
+            
+            if not component:
+                logger.error_print(f"[{task_id}] Component {component_id} not found in components dictionary.")
+                continue
+            
+            if component_id in limited_component:
+                documentation = generate_documentation_for_component(component, orchestrator)
+                parser.add_component_generated_doc(component_id, documentation)
+                break
+            
+        end_time = time.time()
+        time_format = str(timedelta(seconds=end_time - start_time)).split(".", 1)[0]
+        
+        metadata = {
+            "execution_time": {
+                "seconds": end_time - start_time,
+                "formatted": time_format
+            }
+        }
+        
+        parser.save_record_to_database(record_code=task_id, metadata=metadata)
+        
         # --- COMPLETED ---
         final_update = {
             "status": TaskStatus.COMPLETED.value,
@@ -133,6 +193,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
     except Exception as e:
         # --- Tangani Error ---
         print(f"[{task_id}] TERJADI ERROR: {e}")
+        logger.error_print(traceback.format_exc())
         await redis_client.hset(f"task:{task_id}", mapping={
             "status": TaskStatus.FAILED.value, 
             "status_detail": TaskStatusDetail.FAILED.value,

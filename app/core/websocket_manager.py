@@ -44,6 +44,7 @@ class ConnectionManager:
             if task_data_raw:
                 # 1. Validasi dan parse data mentah dari Redis menggunakan model Task
                 task_data_raw['discovered_files'] = json.loads(task_data_raw['discovered_files'])
+                task_data_raw['components'] = json.loads(task_data_raw['components'])
                 task_data = Task(**task_data_raw)
                 
                 # 2. Kirim seluruh objek Task yang sudah divalidasi dan terstruktur

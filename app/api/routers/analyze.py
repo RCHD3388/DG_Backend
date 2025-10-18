@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import shutil
 from typing import List
+import asyncio
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
@@ -36,7 +37,13 @@ async def websocket_subscribe_to_task(websocket: WebSocket, task_id: str):
     try:
         # Jaga koneksi tetap terbuka
         while True:
-            await websocket.receive_text()
+            try:
+                # timeout supaya loop tidak memblokir event loop utama
+                msg = await asyncio.wait_for(websocket.receive_text(), timeout=0.1)
+                print("Received:", msg)
+            except asyncio.TimeoutError:
+                await asyncio.sleep(0.01)
+                continue
     except WebSocketDisconnect:
         websocket_manager.disconnect(task_id)
 

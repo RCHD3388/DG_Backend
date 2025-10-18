@@ -3,8 +3,9 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import logging
+from app.utils.CustomLogger import CustomLogger
 
-logger = logging.getLogger(__name__)
+logger = CustomLogger("Config")
 
 class Settings(BaseSettings):
     # Model Konfigurasi Pydantic, memuat variabel dari file .env
@@ -13,6 +14,9 @@ class Settings(BaseSettings):
     # --- Konfigurasi Redis ---
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
+    
+    MONGO_URI: str = "mongodb://localhost:27017/"
+    MONGO_DATABASE: str = "dg_project"
 
     REDIS_USERNAME: str = "default"
     REDIS_PASSWORD: str = "******"
@@ -36,6 +40,7 @@ DEPENDENCY_GRAPHS_DIR = PROCESS_OUTPUT_DIR / "dependency_graphs"
 COLLECTED_COMPONENTS_DIR = PROCESS_OUTPUT_DIR / "collected_components"
 PYCG_OUTPUT_DIR = PROCESS_OUTPUT_DIR / "pycg_outputs"
 ANALYZE_DIRECTORY = PROCESS_OUTPUT_DIR / "analyze_results"
+DUMMY_TESTING_DIRECTORY = PROCESS_OUTPUT_DIR / "dummy_testing_results"
 
 # Config YAML
 YAML_CONFIG_PATH = APP_BASE_DIR / "config/agent_config.yaml"
@@ -47,13 +52,14 @@ def initialize_output_directories():
     Args:
         process_output_dir: The base directory for all processed outputs.
     """
-    logger.info("Initializing output directories...")
+    logger.info_print("Initializing output directories...")
     
     # Definisikan semua subdirektori yang diperlukan
     dirs_to_create = [
         DEPENDENCY_GRAPHS_DIR,
         COLLECTED_COMPONENTS_DIR,
         PYCG_OUTPUT_DIR,
+        DUMMY_TESTING_DIRECTORY
         # ANALYZE_DIRECTORY
     ]
     
@@ -63,12 +69,12 @@ def initialize_output_directories():
             # - parents=True: Membuat direktori induk jika diperlukan (misal, membuat 'process_outputs' jika belum ada).
             # - exist_ok=True: Tidak akan menimbulkan error jika direktori sudah ada.
             directory.mkdir(parents=True, exist_ok=True)
-            logger.debug(f"Ensured directory exists: {directory}")
+            logger.info_print(f"Ensured directory exists: {directory}")
             
-        logger.info("All output directories are ready.")
+        logger.info_print("All output directories are ready.")
         
     except OSError as e:
-        logger.error(f"Failed to create one or more output directories: {e}")
+        logger.error_print(f"Failed to create one or more output directories: {e}")
         # Melempar kembali exception ini penting agar aplikasi bisa
         # berhenti jika tidak bisa membuat direktori krusial.
         raise
