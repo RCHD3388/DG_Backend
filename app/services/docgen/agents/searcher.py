@@ -137,7 +137,7 @@ class Searcher(BaseAgent):
                 "type": context_type,
                 "signature": target_component.component_signature,
                 "component_type": target_component.component_type,
-                "content": target_component.component_signature,
+                "content": "Reader must request for detailed code context", # target_component.component_signature
                 "pagerank": self.pagerank_scores.get(dep_id, 0)
             }
             

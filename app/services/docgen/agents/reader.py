@@ -51,11 +51,14 @@ class Reader(BaseAgent):
 
         Important rules for structured request:
         1. You have two tools available inside the `<REQUEST>` tag: 
-            A. **`EXPAND` (for Internal Code):**
+            A. `EXPAND` (for Internal Code):
                 - Use this to request the full source code for a dependency that was either:
                     a) Provided only as a docstring, and you need to see the implementation logic.
-                    b) Mentioned in the `[INFO] Omissions` note as being left out.
-
+                - To make a request, you must use the component's unique component ID
+                - The component ID you want to expand should be found in one places in the context you receive:
+                    a) Inside a `Dependencies` block, labeled as `Component: component.id.goes.here`.
+                - You MUST copy the full, dot-separated ID precisely as it is written.
+                - DO NOT invent, shorten, or modify the component IDs in any way. If you are unsure, do not request it.
             B. `RETRIEVAL` (for External Knowledge):
                 - External Open-Internet Retrieval is extremely expensive. Only request external open internet retrieval information if the component involves a novel, state of the art, recently-proposed algorithms or techniques.
                     (e.g. computing a novel loss function (NDCG Loss, Alignment and Uniformity Loss, etc), certain novel metrics (Cohen's Kappa, etc), specialized novel ideas)
@@ -63,11 +66,6 @@ class Reader(BaseAgent):
                 
         2. If no items exist for a category, use empty tags (e.g., <EXPAND></EXPAND>)
         3. Use comma-separated values without spaces for multiple items
-        4. Component IDs for `<EXPAND>` MUST be copied EXACTLY.
-            - The component ID you want to expand can be found in one places in the context you receive:
-                a) Inside a `Dependencies` block, labeled as `Component: component.id.goes.here`.
-            - You MUST copy the full, dot-separated ID precisely as it is written.
-            - DO NOT invent, shorten, or modify the component IDs in any way. If you are unsure, do not request it.
             
         Important rules:
         1. Only request internal codebase information that you think is necessary for docstring generation task. For some components that is simple and obvious, you do not need any other information for docstring generation.
