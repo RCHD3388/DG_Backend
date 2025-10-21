@@ -34,6 +34,7 @@ class CodeComponent:
     generated_doc: Optional[str] = ""
     
     # Line numbers in the file (1-indexed)
+    component_signature: str = ""
     start_line: int = 0
     end_line: int = 0
     
@@ -53,6 +54,7 @@ class CodeComponent:
             'depends_on': list(self.depends_on),
             'used_by': list(self.used_by),
             'generated_doc': self.generated_doc,
+            'component_signature': self.component_signature,
             'start_line': self.start_line,
             'end_line': self.end_line,
             'has_docstring': self.has_docstring,
@@ -71,6 +73,7 @@ class CodeComponent:
             depends_on=set(data.get('depends_on', [])),
             used_by=set(data.get('used_by', [])),
             generated_doc=data.get('generated_doc', ""),
+            component_signature=data.get('component_signature', ""),
             start_line=data.get('start_line', 0),
             end_line=data.get('end_line', 0),
             has_docstring=data.get('has_docstring', False),

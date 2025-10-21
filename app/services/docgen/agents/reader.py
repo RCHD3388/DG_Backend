@@ -19,43 +19,30 @@ class Reader(BaseAgent):
         is needed to generate a high-quality docstring. You should analyze the code component and
         current context to make this determination.
 
-        You have access to two types of information sources:
+        You have access to three types of information sources:
 
-        1. Internal Codebase Information (from local code repository):
-            For Functions:
-            - Code components called within the function body
-            - Places where this function is called
-
-            For Methods:
-            - Code components called within the method body
-            - Places where this method is called
-            - The class this method belongs to
-
-            For Classes:
-            - Code components called in the __init__ method
-            - Places where this class is instantiated
-            - Complete class implementation beyond __init__
-
-        2. External Open Internet retrieval Information:
+        1. `### CLASS CONTEXT`: If the component is a method, this section shows the class definition and `__init__` method.
+        2. `### INTERNAL CONTEXT`: This section contains information retrieved from the local codebase.
+            - `#### Dependencies`: Lists other components (functions, classes, methods) that the main component calls or used.
+            - `#### Usage Examples (called_by)`: Shows real code snippets of how the main component is used elsewhere, if found.
+        3. `### EXTERNAL CONTEXT`: Information retrieved from the LLM:
             - External Retrieval is extremely expensive. Only request external open internet retrieval information if the component involves a novel, state of the art, recently-proposed algorithms or techniques.
               (e.g. computing a novel loss function (NDCG Loss, Alignment and Uniformity Loss, etc), certain novel metrics (Cohen's Kappa, etc), specialized novel ideas)
             - Each query should be a clear, natural language question
+
+        Your Task :
+        Based on the code component and the provided context, you must decide if you have enough information.
 
         Your response should:
         1. First provide a free text analysis of the current code and context
         2. Explain what additional information might be needed (if any)
         3. Include an <INFO_NEED>true</INFO_NEED> tag if more information is needed,
            or <INFO_NEED>false</INFO_NEED> if current context is sufficient
-        4. If more information is needed, end your response with a structured request in XML format:
+        4. If more information is needed, you MUST end your response with a structured request in XML format:
 
         <REQUEST>
             <INTERNAL>
-                <CALLS>
-                    <CLASS>class1,class2</CLASS>
-                    <FUNCTION>func1,func2</FUNCTION>
-                    <METHOD>self.method1,instance.method2,class.method3</METHOD>
-                </CALLS>
-                <CALL_BY>true/false</CALL_BY>
+                <EXPAND>component.id.one,component.id.two</EXPAND>
             </INTERNAL>
             <RETRIEVAL>
                 <QUERY>query1,query2</QUERY>
@@ -63,49 +50,44 @@ class Reader(BaseAgent):
         </REQUEST>
 
         Important rules for structured request:
-        1. For CALLS sections, only include names that are explicitly needed
-        2. If no items exist for a category, use empty tags (e.g., <CLASS></CLASS>)
-        3. CALL_BY should be "true" only if you need to know what calls/uses a component
-        4. Each external QUERY should be a concise, clear, natural language search query
-        5. Use comma-separated values without spaces for multiple items
-        6. For METHODS, keep dot notation in the same format as the input.
-        7. Only first-level calls of the focal code component are accessible. Do not request information on code components that are not directly called by the focal component.
-        8. External Open-Internet Retrieval is extremely expensive. Only request external open internet retrieval information if the component involves a novel, state of the art, recently-proposed algorithms or techniques.
-              (e.g. computing a novel loss function (NDCG Loss, Alignment and Uniformity Loss, etc), certain novel metrics (Cohen's Kappa, etc), specialized novel ideas)
+        1. You have two tools available inside the `<REQUEST>` tag: 
+            A. **`EXPAND` (for Internal Code):**
+                - Use this to request the full source code for a dependency that was either:
+                    a) Provided only as a docstring, and you need to see the implementation logic.
+                    b) Mentioned in the `[INFO] Omissions` note as being left out.
 
+            B. `RETRIEVAL` (for External Knowledge):
+                - External Open-Internet Retrieval is extremely expensive. Only request external open internet retrieval information if the component involves a novel, state of the art, recently-proposed algorithms or techniques.
+                    (e.g. computing a novel loss function (NDCG Loss, Alignment and Uniformity Loss, etc), certain novel metrics (Cohen's Kappa, etc), specialized novel ideas)
+                - Each external QUERY should be a concise, clear, natural language search query
+                
+        2. If no items exist for a category, use empty tags (e.g., <EXPAND></EXPAND>)
+        3. Use comma-separated values without spaces for multiple items
+        4. Component IDs for `<EXPAND>` MUST be copied EXACTLY.
+            - The component ID you want to expand can be found in two places in the context you receive:
+                a) Inside a `Dependencies` block, labeled as `Component: component.id.goes.here`.
+            - You MUST copy the full, dot-separated ID precisely as it is written.
+            - DO NOT invent, shorten, or modify the component IDs in any way. If you are unsure, do not request it.
 
         Important rules:
         1. Only request internal codebase information that you think is necessary for docstring generation task. For some components that is simple and obvious, you do not need any other information for docstring generation.
-        2. External Open-Internet retrieval request is extremely expensive. Only request information that you think is absolutely necessary for docstring generation task.
+        2. External Open-Internet (Using LLM) retrieval request is extremely expensive. Only request information that you think is absolutely necessary for docstring generation task.
 
-        <Example_response>
-        The current code shows a database connection function. To write a comprehensive docstring, we need to understand:
-        1. Where this function is called - this will reveal the expected input patterns and common use cases
-        2. What internal database functions it relies on - this will help document any dependencies or prerequisites
-
-        This additional context is necessary because database connections often have specific setup requirements and usage patterns that should be documented for proper implementation.
-
+        Example response:
+        The provided context for `calculate_adaptive_learning_rate` shows its dependencies, including `get_loss_gradient`. The 
+        docstring for `get_loss_gradient` was given, but it doesn't clarify how it handles sparse gradients, which seems critical for 
+        this adaptive function. I need to see its full implementation.
+        
         <INFO_NEED>true</INFO_NEED>
-
         <REQUEST>
             <INTERNAL>
-                <CALLS>
-                    <CLASS></CLASS>
-                    <FUNCTION>execute_query,connect_db</FUNCTION>
-                    <METHOD>self.process_data,data_processor._internal_process</METHOD>
-                </CALLS>
-                <CALL_BY>true</CALL_BY>
+                <EXPAND>optimizers.utils.get_loss_gradient</EXPAND>
             </INTERNAL>
-            <RETRIEVAL>
-                <QUERY></QUERY>
-            </RETRIEVAL>
+            <RETRIEVAL></RETRIEVAL>
         </REQUEST>
 
-        </Example_response>
-
-        Keep in mind that:
-
-        3. You do not need to generate docstring for the component. Just determine if more information is needed.
+        
+        3. Keep in mind that: You do not need to generate docstring for the component. Just determine if more information is needed. Your job is NOT to write the docstring. It is to ensure all necessary information is gathered.
         """
         
         self.add_to_memory("system", self.system_prompt)
@@ -125,7 +107,7 @@ class Reader(BaseAgent):
         </context>
 
         <component>
-        Analyze the following code component:
+        Focal component to be documented:
         {state['focal_component']}
         </component>
         """

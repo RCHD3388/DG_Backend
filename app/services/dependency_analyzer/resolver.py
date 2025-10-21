@@ -147,8 +147,6 @@ class AlternativeDependencyResolver(DependencyResolver):
             str(p) for p in relevant_files
         ]
 
-        print(entry_points)
-
         if not entry_points:
             print(f"[DependencyResolver] No Python files found to analyze in {self.repo_path} after filtering.")
             return

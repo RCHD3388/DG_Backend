@@ -42,3 +42,5 @@ agent_llms:
 flow_control:
   max_reader_search_attempts: 1
   max_verifier_rejections: 2
+  max_used_by_samples: 2
+  max_context_token: 10000

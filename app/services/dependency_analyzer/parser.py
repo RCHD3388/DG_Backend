@@ -134,6 +134,7 @@ class DependencyParser:
                     file_path=file_path,
                     relative_path=relative_path,
                     source_code=self._get_source_segment(source, start_line, end_line),
+                    component_signature=self._get_source_signature(node),
                     start_line=start_line,
                     end_line=end_line,
                     has_docstring=has_docstring,
@@ -168,6 +169,7 @@ class DependencyParser:
                             file_path=file_path,
                             relative_path=relative_path,
                             source_code=self._get_source_segment(source, method_start_line, method_end_line),
+                            component_signature=self._get_source_signature(item),
                             start_line=method_start_line,
                             end_line=method_end_line,
                             has_docstring=method_has_docstring,
@@ -202,6 +204,7 @@ class DependencyParser:
                         file_path=file_path,
                         relative_path=relative_path,
                         source_code=self._get_source_segment(source, function_start_line, function_end_line),
+                        component_signature=self._get_source_signature(node),
                         start_line=function_start_line,
                         end_line=function_end_line,
                         has_docstring=has_docstring,
@@ -221,6 +224,83 @@ class DependencyParser:
         except Exception as e:
             logger.warning_print(f"Error getting source segment: {e}")
             return ""
+        
+    def _get_source_signature(self, node: ast.AST) -> str:
+        """
+        Membangun ulang string signature dari node AST untuk fungsi atau kelas.
+
+        Fungsi ini secara akurat merekonstruksi header definisi untuk
+        FunctionDef, AsyncFunctionDef, dan ClassDef, termasuk generic type
+        parameters (PEP 695).
+
+        Args:
+            node: Node AST yang akan dianalisis. Harus berupa salah satu dari
+                  ast.FunctionDef, ast.AsyncFunctionDef, atau ast.ClassDef.
+
+        Returns:
+            String signature yang lengkap dan valid secara sintaksis,
+            diakhiri dengan titik dua (':'). Mengembalikan string kosong
+            jika node tidak didukung.
+        """
+        
+        # --- Handle Fungsi dan Method (Sync & Async) ---
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            
+            # 1. Tentukan keyword: 'def' atau 'async def'
+            keyword = "async def" if isinstance(node, ast.AsyncFunctionDef) else "def"
+            
+            # 2. Ambil nama fungsi
+            name = node.name
+            
+            # 3. Handle Generic Type Parameters (PEP 695), jika ada
+            type_params_str = ""
+            if hasattr(node, 'type_params') and node.type_params:
+                # ast.unparse akan mengubah daftar type param menjadi "[T, K, ...]"
+                type_params_str = ast.unparse(node.type_params)
+
+            # 4. Handle parameter (args). ast.unparse() adalah cara terbaik
+            #    karena menangani semua kasus: default, *args, **kwargs, dll.
+            params_str = f"({ast.unparse(node.args)})"
+            
+            # 5. Handle return annotation, jika ada
+            return_annotation_str = ""
+            if node.returns:
+                return_annotation_str = f" -> {ast.unparse(node.returns)}"
+            
+            # 6. Gabungkan semua bagian menjadi signature lengkap
+            if type_params_str:
+                return f"{keyword} {name}[{type_params_str}]{params_str}{return_annotation_str}:"
+            else:
+                return f"{keyword} {name}{params_str}{return_annotation_str}:"
+
+        # --- Handle Kelas ---
+        elif isinstance(node, ast.ClassDef):
+            
+            # 1. Ambil nama kelas
+            name = node.name
+
+            # 2. Handle Generic Type Parameters (PEP 695), jika ada
+            type_params_str = ""
+            if hasattr(node, 'type_params') and node.type_params:
+                type_params_str = ast.unparse(node.type_params)
+
+            # 3. Handle base classes (pewarisan) dan keyword arguments (metaclass)
+            parent_part_str = ""
+            # Menggabungkan base classes dan keyword arguments
+            all_args = [ast.unparse(b) for b in node.bases] + \
+                       [ast.unparse(k) for k in node.keywords]
+            
+            if all_args:
+                parent_part_str = f"({', '.join(all_args)})"
+            
+            # 4. Gabungkan semua 
+            if type_params_str:
+                return f"class {name}[{type_params_str}]{parent_part_str}:"
+            else:
+                return f"class {name}{parent_part_str}:"
+            
+        # Jika node bukan tipe yang didukung, kembalikan string kosong
+        return ""
     
     def _get_docstring(self, source: str, node: ast.AST) -> str:
         """Get the docstring for a given AST node."""

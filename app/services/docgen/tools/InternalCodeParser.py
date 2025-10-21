@@ -21,6 +21,10 @@ class InternalCodeParser:
         """Mengembalikan skor PageRank."""
         return self.pagerank_scores
     
+    def get_component_by_id(self, component_id: str) -> CodeComponent:
+        """Mengembalikan komponen."""
+        return self.components.get(component_id, {})
+    
     def get_component_docstring(self, component_id: str) -> str:
         """Mengembalikan daftar docstring dari semua komponen."""
         return self.components.get(component_id, {}).generated_doc
@@ -29,14 +33,13 @@ class InternalCodeParser:
         """Mengembalikan daftar kode sumber dari semua komponen."""
         return self.components.get(component_id, {}).source_code
     
-    def get_class_skeleton(self, component_id: str) -> str:
+    def get_class_skeleton(self, current_component: CodeComponent) -> str:
         """Mengembalikan Snipet class context"""
-        current_component = self.components.get(component_id, {})
         
-        if current_component.component_type == "method":
+        if current_component.component_type == "class":
             
             # 1. Get ID (class, class_init)
-            class_id = self.find_class_prefix_for_method(component_id)
+            class_id = current_component.id
             class_init_id = f"{class_id}.__init__"
             
             # 2. Get component (class, class_init)
@@ -94,10 +97,12 @@ class InternalCodeParser:
         sample_called_by = sorted_called_by[:num_samples]
         
         for sample_id in sample_called_by:
-            snippet = self.get_component_source_code(sample_id)
+            sample_component = self.components.get(sample_id, {})
+            
             gathered_content.append({
-                "snippet": snippet,
-                "source_file": sample_id,
+                "id": sample_id,
+                "component_type": sample_component.component_type,
+                "snippet": self.get_class_skeleton(sample_component) if sample_component.component_type == "class" else self.get_component_source_code(sample_id)
             })
         
         return gathered_content

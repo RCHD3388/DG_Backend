@@ -142,7 +142,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         diGraph = parser.get_Nx_DiGraph()
         pagerank_scores = get_pagerank_scores(diGraph)
         sorted_components = get_topological_sort_from_dependencies(diGraph)
-        print(sorted_components)
+        # print(sorted_components)
 
         # --- DOCUMENT GENERATION ---
         internalCodeParser = InternalCodeParser(
@@ -153,7 +153,11 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         )
         
         # Limited component_id
-        limited_component = ["core.memory.short_term.ShortTermMemory._evict_lru"]
+        limited_component = [ "core.memory.short_term.ShortTermMemory._evict_lru", 
+            "core.memory.long_term.LongTermMemory",
+            "core.memory.long_term.LongTermMemory._save_item",
+            "core.planning.task_planner.TaskPlanner.replan"
+            ]
         
         # Orchestrator loop - Create documentation
         orchestrator = Orchestrator(repo_path=current_repo_path, internalCodeParser=internalCodeParser)
@@ -167,7 +171,6 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
             if component_id in limited_component:
                 documentation = generate_documentation_for_component(component, orchestrator)
                 parser.add_component_generated_doc(component_id, documentation)
-                break
             
         end_time = time.time()
         time_format = str(timedelta(seconds=end_time - start_time)).split(".", 1)[0]
