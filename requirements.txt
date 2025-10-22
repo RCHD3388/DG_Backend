@@ -1,6 +1,11 @@
-# requirements.txt
-
 fastapi[standard]
 pydantic-settings
 redis
 pymongo
+flask
+networkx
+numpy
+tiktoken
+scipy
+langchain_core
+langchain_google_genai

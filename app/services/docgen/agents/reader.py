@@ -64,11 +64,11 @@ class Reader(BaseAgent):
         2. If no items exist for a category, use empty tags (e.g., <EXPAND></EXPAND>)
         3. Use comma-separated values without spaces for multiple items
         4. Component IDs for `<EXPAND>` MUST be copied EXACTLY.
-            - The component ID you want to expand can be found in two places in the context you receive:
+            - The component ID you want to expand can be found in one places in the context you receive:
                 a) Inside a `Dependencies` block, labeled as `Component: component.id.goes.here`.
             - You MUST copy the full, dot-separated ID precisely as it is written.
             - DO NOT invent, shorten, or modify the component IDs in any way. If you are unsure, do not request it.
-
+            
         Important rules:
         1. Only request internal codebase information that you think is necessary for docstring generation task. For some components that is simple and obvious, you do not need any other information for docstring generation.
         2. External Open-Internet (Using LLM) retrieval request is extremely expensive. Only request information that you think is absolutely necessary for docstring generation task.
