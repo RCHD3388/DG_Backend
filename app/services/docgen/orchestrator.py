@@ -107,14 +107,15 @@ class Orchestrator(OrchestratorBase):
                 logger.error_print("Reader max attempts reached.")
 
             print("[-----]")
-        
-            return self.return_documentation_result(state, usage_callback)
 
             # WRITER-VERIFIER CYCLE
-            # while True:
+            while True:
                 
-            #     # 3. WRITER PROCESS
-            #     state = self.writer.process(state)
+                # 3. WRITER PROCESS
+                state = self.writer.process(state)
+                
+                return self.return_documentation_result(state, usage_callback)
+                
             #     # 4. VERIFIER PROCESS 
             #     state = self.verifier.process(state)
 
