@@ -171,7 +171,7 @@ class Searcher(BaseAgent):
         logger.info_print("Update Context")
         
         if not self.gathered_data:
-            logger.warning("Gathered data is empty. Skipping context update.")
+            logger.warning_print("Gathered data is empty. Skipping context update.")
             state["context"] = ""
             return state
         
@@ -192,7 +192,7 @@ class Searcher(BaseAgent):
             internal_data = self.gathered_data.get("internal", {})
             external_data = self.gathered_data.get("external", {})
             if not internal_data.get("dependencies") and not internal_data.get("used_by") and not internal_data.get("class_context") and not external_data:
-                logger.warning("Semua konteks telah dipotong. Berhenti.")
+                logger.warning_print("Semua konteks telah dipotong. Berhenti.")
                 break
 
         final_context_string = self.format_search_context(self.gathered_data, state["component"].id)
