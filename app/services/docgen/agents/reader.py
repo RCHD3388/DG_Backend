@@ -54,8 +54,8 @@ class Reader(BaseAgent):
             A. `EXPAND` (for Internal Code):
                 - Use this to request the full source code for a dependency that was either:
                     a) Provided only as a docstring, and you need to see the implementation logic.
-                - To make a request, you must use the component's unique component ID
-                - The component ID you want to expand should be found in one places in the context you receive:
+                - To make a request, you MUST use the component's unique component ID
+                - The component ID you want to expand should be found in one place in the context you receive:
                     a) Inside a `Dependencies` block, labeled as `Component: component.id.goes.here`.
                 - You MUST copy the full, dot-separated ID precisely as it is written.
                 - DO NOT invent, shorten, or modify the component IDs in any way. If you are unsure, do not request it.
@@ -69,7 +69,8 @@ class Reader(BaseAgent):
             
         Important rules:
         1. Only request internal codebase information that you think is necessary for docstring generation task. For some components that is simple and obvious, you do not need any other information for docstring generation.
-        2. External Open-Internet (Using LLM) retrieval request is extremely expensive. Only request information that you think is absolutely necessary for docstring generation task.
+        2. FINAL CHECK: Any component ID requested in `<EXPAND>` MUST be a literal copy of an ID found in the current context's `Dependencies` block.
+        3. External Open-Internet (Using LLM) retrieval request is extremely expensive. Only request information that you think is absolutely necessary for docstring generation task.
 
         Example response:
         The provided context for `calculate_adaptive_learning_rate` shows its dependencies, including `get_loss_gradient`. The 
