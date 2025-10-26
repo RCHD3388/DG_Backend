@@ -62,10 +62,10 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
 -   **`raises`**: (Opsional) Deteksi `raise` statement eksplisit. Untuk setiap error, daftarkan 'error' (tipe, misal: 'ValueError') dan 'description' yang menjelaskan:
     1.  **Kondisi Spesifik**: Kondisi apa yang memicu *exception* ini?
     2.  **Pencegahan/Penanganan**: Bagaimana pengguna dapat mencegah atau menangani *exception* ini?
--   **`examples`**: (Sangat dianjurkan) Tulis contoh kode singkat dalam format doctest (dimulai dengan `>>> `).
-    -   **PERINGATAN UTAMA**: Berikan contoh HANYA jika kode dan konteks memberikan skenario penggunaan yang praktis dan jelas. **Lebih baik mengembalikan `null` untuk field ini daripada mengarang (berhalusinasi) skenario yang tidak faktual.**
+-   **`examples`**: (Sangat dianjurkan dan penting) Tulis contoh kode singkat dalam format doctest (dimulai dengan `>>> `).
+    -   **PERINGATAN UTAMA**: Berikan contoh jika kode dan konteks memberikan skenario penggunaan yang praktis dan jelas. **Lebih baik mengembalikan `null` untuk field ini daripada mengarang (berhalusinasi) skenario yang tidak faktual.**
     -   **PERINTAH KERINGKASAN**: Contoh HARUS ringkas dan to-the-point. Hanya sertakan informasi esensial untuk mendemonstrasikan penggunaan. Hindari skenario yang panjang atau detail yang berlebihan.
-    -   Jika contoh dibuat, fokus pada:
+    -   Jika example dibuat, fokus pada:
         1.  **Skenario Praktis**: Tunjukkan penggunaan di dunia nyata secara ringkas.
         2.  **Kombinasi Parameter**: Tunjukkan pemanggilan dengan kombinasi parameter yang umum.
         3.  **Penanganan Error**: (Jika relevan dan jelas) Tunjukkan secara singkat cara menangani *exception* atau pemanggilan yang menimbulkannya.
@@ -99,8 +99,8 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
     2.  **Tipe/Nilai**: Apa tipe datanya dan apa nilai yang valid?
     3.  **Dependensi**: Apakah nilainya bergantung pada atribut atau parameter lain?
 -   **`methods`**: (Opsional) Daftar beberapa metode publik yang paling PENTING (misal: 'fit', 'predict'). Jangan daftarkan *semua* metode.
--   **`examples`**: (Sangat dianjurkan) Tulis contoh singkat cara menginisialisasi dan menggunakan objek kelas ini (diawali `>>> `).
-    -   **PERINGATAN UTAMA**: Berikan contoh HANYA jika kode dan konteks memberikan skenario penggunaan yang praktis dan jelas. **Lebih baik mengembalikan `null` untuk field ini daripada mengarang (berhalusinasi) skenario yang tidak faktual**
+-   **`examples`**: (Sangat dianjurkan dan penting) Tulis contoh singkat cara menginisialisasi dan menggunakan objek kelas ini (diawali `>>> `).
+    -   **PERINGATAN UTAMA**: Berikan contoh jika kode dan konteks memberikan skenario penggunaan yang praktis dan jelas. **Lebih baik mengembalikan `null` untuk field ini daripada mengarang (berhalusinasi) skenario yang tidak faktual**
     -   **PERINTAH KERINGKASAN**: Contoh HARUS ringkas dan to-the-point. Hanya sertakan informasi esensial untuk mendemonstrasikan penggunaan. Hindari skenario yang panjang atau detail yang berlebihan.
     -   Jika contoh dibuat, fokus pada:
         1.  **Alur Kerja Khas**: Tunjukkan skenario penggunaan praktis di dunia nyata secara ringkas.

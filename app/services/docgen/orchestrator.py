@@ -61,6 +61,7 @@ class Orchestrator(OrchestratorBase):
         state: AgentState = {
             "component": component,
             "focal_component": truncated_source_code,
+            "documentation_json": None,
             "docstring": "",
             "context": "",
             "reader_response": None,
@@ -115,11 +116,14 @@ class Orchestrator(OrchestratorBase):
                 state = self.writer.process(state)
                 with open(DUMMY_TESTING_DIRECTORY / f"DocRWR_{state["component"].id}.txt", "w", encoding="utf-8") as f:
                     json.dump(state["docstring"], f, indent=4, ensure_ascii=False)
-                return self.return_documentation_result(state, usage_callback)
                 
-            #     # 4. VERIFIER PROCESS 
-            #     state = self.verifier.process(state)
+                
+                # 4. VERIFIER PROCESS 
+                state = self.verifier.process(state)
+                with open(DUMMY_TESTING_DIRECTORY / f"VerifierState_{state["component"].id}.txt", "w", encoding="utf-8") as f:
+                    json.dump(state["verification_result"], f, indent=4, ensure_ascii=False)
 
+                return self.return_documentation_result(state, usage_callback)
             #     if not state["verification_result"]["needs_revision"] or state['verifier_rejection_count'] >= self.max_reader_search_attempts:
             #         # -> IF DONE (docstring accepted or max rejections reached, exit loop)
             #         if state['verifier_rejection_count'] >= self.max_reader_search_attempts:
