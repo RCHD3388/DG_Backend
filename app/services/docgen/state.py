@@ -2,12 +2,15 @@
 
 from typing import TypedDict, Optional, Dict, Any, List
 from app.schemas.models.code_component_schema import CodeComponent
+from app.services.docgen.agents.documentation_output import NumpyDocstring
 
 class AgentState(TypedDict):
     """Mendefinisikan state yang mengalir melalui orchestrator."""
     # Input
     component: CodeComponent
     focal_component: str
+    
+    documentation_json: Optional[NumpyDocstring]
     docstring: Optional[str] 
     
     # State Dinamis

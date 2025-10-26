@@ -256,8 +256,8 @@ class Searcher(BaseAgent):
             context_parts.append(f"{header}\n\n" + "\n---\n".join(ext_blocks))
 
         formatted_result = "\n\n".join(filter(None, context_parts))
-        with open(DUMMY_TESTING_DIRECTORY / f"FinalContx_{key}{random.randint(0, 1000)}.md", "w", encoding="utf-8") as f:
-            json.dump(formatted_result, f, indent=4, ensure_ascii=False)
+        # with open(DUMMY_TESTING_DIRECTORY / f"FinalContx_{key}{random.randint(0, 1000)}.md", "w", encoding="utf-8") as f:
+        #     json.dump(formatted_result, f, indent=4, ensure_ascii=False)
             
         return formatted_result
     

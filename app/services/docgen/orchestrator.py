@@ -113,7 +113,8 @@ class Orchestrator(OrchestratorBase):
                 
                 # 3. WRITER PROCESS
                 state = self.writer.process(state)
-                
+                with open(DUMMY_TESTING_DIRECTORY / f"DocRWR_{state["component"].id}.txt", "w", encoding="utf-8") as f:
+                    json.dump(state["docstring"], f, indent=4, ensure_ascii=False)
                 return self.return_documentation_result(state, usage_callback)
                 
             #     # 4. VERIFIER PROCESS 

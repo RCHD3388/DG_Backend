@@ -5,6 +5,7 @@ from typing import Optional, Dict
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import Runnable
+from langchain_core.globals import set_debug 
 
 from ..base import BaseAgent
 from ..state import AgentState
