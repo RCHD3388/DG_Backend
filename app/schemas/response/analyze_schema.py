@@ -5,3 +5,6 @@ class AnalysisStartSuccessData(BaseModel):
     """
     task_id: str
     message: str
+    
+class AnalysisRequestBody(BaseModel):
+    analyze_name: str

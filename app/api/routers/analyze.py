@@ -9,7 +9,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from app.core.websocket_manager import websocket_manager
-from app.schemas.response.analyze_schema import AnalysisStartSuccessData
+from app.schemas.response.analyze_schema import AnalysisStartSuccessData, AnalysisRequestBody
 from app.schemas.response_schema import StandardResponse
 from app.core.config import UPLOAD_DIRECTORY, DEPENDENCY_GRAPHS_DIR, COLLECTED_COMPONENTS_DIR
 from app.services.doc_generator import generate_documentation_for_project
@@ -54,6 +54,7 @@ async def websocket_subscribe_to_task(websocket: WebSocket, task_id: str):
 )
 async def analyze_repository(
     file_name: str,
+    body: AnalysisRequestBody,
     background_tasks: BackgroundTasks,
     redis_client: redis.Redis = Depends(get_redis_client) 
 ):
@@ -78,7 +79,8 @@ async def analyze_repository(
     background_tasks.add_task(
         generate_documentation_for_project, 
         source_file_path=repo_file_path,
-        task_id=new_task.task_id
+        task_id=new_task.task_id,
+        analyze_name=body.analyze_name if body.analyze_name else None
     )
 
     response_data = AnalysisStartSuccessData(

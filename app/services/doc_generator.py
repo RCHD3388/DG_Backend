@@ -6,7 +6,7 @@ import sys
 import logging
 import asyncio
 import time
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pathlib import Path
 from datetime import timedelta
 import traceback
@@ -72,7 +72,7 @@ def generate_documentation_for_component(component: CodeComponent, orchestrator:
     
     return documentation_state
 
-async def generate_documentation_for_project(source_file_path: Path, task_id: str):
+async def generate_documentation_for_project(source_file_path: Path, task_id: str, analyze_name: Optional[str] = None):
     """
     Fungsi orkestrator yang mengelola seluruh alur kerja dari awal hingga akhir.
     """
@@ -193,7 +193,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
             }
         }
         
-        parser.save_record_to_database(record_code=task_id, metadata=metadata)
+        parser.save_record_to_database(record_code=task_id, metadata=metadata, name=analyze_name)
         
         # --- COMPLETED ---
         final_update = {

@@ -295,7 +295,7 @@ class PrimaryDependencyResolver(DependencyResolver):
             # Dapatkan nama folder terakhir dari root, e.g., 'anus'
             root_folder_name = os.path.basename(root_folder)
 
-            print(f"{module_parts[0]} --- {root_folder_name}")
+            # print(f"{module_parts[0]} --- {root_folder_name}")
             # --- INI ADALAH PERBAIKANNYA ---
             
             # Cek jika path modul (e.g., 'anus.core') sudah mengandung
@@ -312,7 +312,7 @@ class PrimaryDependencyResolver(DependencyResolver):
                 # parts = ['anus', 'core', 'agent']
                 # hasil = '.../project_root/anus/core/agent'
                 base_path = os.path.join(root_folder, *module_parts)
-            print("base_path: ", base_path)
+            # print("base_path: ", base_path)
         else:
             current_dir = os.path.dirname(current_filepath)
             pkg_dir = current_dir
@@ -363,7 +363,7 @@ class PrimaryDependencyResolver(DependencyResolver):
         Melacak 'jalur' simbol (e.g., "A.B.Class.method") secara rekursif.
         Menangani: Definisi, Re-export, Navigasi Sub-Modul, Pewarisan, dan Wildcard.
         """
-        print(f"trace_symbol_origin({symbol_name}, {current_filepath}, {root_folder})")
+        # print(f"trace_symbol_origin({symbol_name}, {current_filepath}, {root_folder})")
         
         if visited is None:
             visited = set()
@@ -759,7 +759,7 @@ class PrimaryDependencyResolver(DependencyResolver):
         # --- REVISI SELESAI ---
 
         # Jika Prioritas 1 dan 2 gagal
-        print(f"Tidak dapat menemukan pernyataan import untuk basis '{component_name}' di {entry_file_path}")
+        # print(f"Tidak dapat menemukan pernyataan import untuk basis '{component_name}' di {entry_file_path}")
         return None
 
 

@@ -24,13 +24,24 @@ class Writer(BaseAgent):
          # Base prompt dan prompt spesifik dimuat sekali saat inisialisasi
          self.system_prompt_template: str = """You are a precise "Documentation Content Generator" AI. Your task is to generate a structured JSON object containing documentation content for a given Python component.
 
-   **Primary Directives:**
+   **PEIMARY DIRECTIVES:**
    1.  **Language:** All descriptive text MUST be in professional Bahasa Indonesia. Technical terms, code names, and types MUST remain in English.
    2.  **Output Format:** Your ENTIRE output MUST be a single, valid JSON object that strictly adheres to the provided schema. Do not output any text outside of the JSON structure.
    3.  **Content Focus:** Provide factual, concise content. Do not add formatting like indentation or quotes; the system will render the final docstring.
 
    The required JSON schema is provided in the user prompt under `OUTPUT FORMAT INSTRUCTIONS`.
-         """
+   
+   **TECHNICAL WRITING DIRECTIVES:**
+   Selain tiga arahan utama di atas, seluruh konten deskriptif (dalam Bahasa Indonesia) HARUS mematuhi prinsip inti *Technical Writing* gaya Google:
+
+   1.  **Gunakan Present Tense:** HARUS menggunakan **Present Tense** (Bentuk Waktu Sekarang Sederhana) untuk mendeskripsikan fakta atau perilaku kode yang konsisten. (Contoh: "Metode ini **memvalidasi** kredensial," bukan "Metode ini **akan memvalidasi** kredensial.")
+   2.  **Gunakan Active Voice & Bahasa Jelas:**
+      * Prioritaskan **Active Voice** (Kalimat Aktif) agar lebih jelas dan langsung. (Contoh: "Fungsi **memproses** data," lebih baik daripada "Data **diproses** oleh fungsi.")
+      * HINDARI jargon, *slang*, bahasa *ableist*, kalimat yang terputus-putus (*choppy*), atau kalimat yang terlalu panjang dan bertele-tele (*long-winded*).
+   3.  **Buat Dokumentasi Timeless:** HINDARI kata atau frasa yang mengikat dokumentasi pada waktu tertentu (misalnya: "saat ini", "sekarang", "segera"). Deskripsikan fungsionalitas sebagaimana adanya secara permanen.
+   4.  **Jelas, Ringkas, Tidak Ambigu:** Konten HARUS jelas, padat, dan tidak ambigu (*unambiguous*). Fokus pada fakta. Jangan bertele-tele.
+   5.  **Patuhi Aturan Konten Lainnya:** Perhatikan juga semua aturan penulisan konten, tata bahasa, dan ejaan standar lainnya untuk menjaga profesionalisme.
+"""
          
          self.rules_for_function_template: str = """**TASK: Generate Documentation Content for a Function/Method**
 
@@ -46,7 +57,7 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
     -   Informasi HARUS faktual berdasarkan kode dan konteks, jangan berhalusinasi.
     -   Secara faktual jelaskan:
         1.  **MENGAPA** (Purpose/Use Case): Apa tujuan dan kasus penggunaan utama fungsi ini?
-        2.  **KAPAN** (When to Use): Kapan situasi ideal untuk memanggil fungsi ini?
+        2.  **KAPAN** (When to Use): Kapan situasi ideal untuk menggunakan fungsi ini?
         3.  **DI MANA** (Workflow Fit): Bagaimana posisinya dalam alur kerja sistem yang lebih besar?
         4.  **BAGAIMANA** (High-Level Approach): Apa pendekatan implementasi garis besarnya (tanpa terlalu teknis)?
 -   **`parameters`**: (PENTING) Deteksi SEMUA parameter dari signatur. Untuk setiap parameter, sediakan 'name', 'type', dan 'description' (dalam Bahasa Indonesia). Deskripsi HARUS mendalam dan mencakup:
@@ -64,13 +75,13 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
     2.  **Pencegahan/Penanganan**: Bagaimana pengguna dapat mencegah atau menangani *exception* ini?
 -   **`examples`**: (Sangat dianjurkan dan penting) Tulis contoh kode singkat dalam format doctest (dimulai dengan `>>> `).
     -   **PERINGATAN UTAMA**: Berikan contoh jika kode dan konteks memberikan skenario penggunaan yang praktis dan jelas. **Lebih baik mengembalikan `null` untuk field ini daripada mengarang (berhalusinasi) skenario yang tidak faktual.**
-    -   **PERINTAH KERINGKASAN**: Contoh HARUS ringkas dan to-the-point. Hanya sertakan informasi esensial untuk mendemonstrasikan penggunaan. Hindari skenario yang panjang atau detail yang berlebihan.
+    -   **PERINTAH KERINGKASAN**: Contoh HARUS RINGKAS dan JELAS. Hanya sertakan informasi esensial untuk mendemonstrasikan penggunaan. Hindari skenario yang panjang atau detail yang berlebihan.
     -   Jika example dibuat, fokus pada:
         1.  **Skenario Praktis**: Tunjukkan penggunaan di dunia nyata secara ringkas.
         2.  **Kombinasi Parameter**: Tunjukkan pemanggilan dengan kombinasi parameter yang umum.
         3.  **Penanganan Error**: (Jika relevan dan jelas) Tunjukkan secara singkat cara menangani *exception* atau pemanggilan yang menimbulkannya.
 -   **`keywords`**: Berikan 3-5 kata kunci teknis yang relevan.
--   **Bagian Lain (Opsional)**: Isi `see_also`, `notes`, `references` HANYA jika konteks atau kode memberikan informasi yang sangat jelas untuk itu.
+-   **Bagian Lain (Opsional)**: Isi `see_also`, `notes` HANYA jika konteks atau kode memberikan informasi yang sangat jelas untuk itu.
 """
 
          self.rules_for_class_template: str = """**TASK: Generate Documentation Content for a Class**
@@ -101,13 +112,13 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
 -   **`methods`**: (Opsional) Daftar beberapa metode publik yang paling PENTING (misal: 'fit', 'predict'). Jangan daftarkan *semua* metode.
 -   **`examples`**: (Sangat dianjurkan dan penting) Tulis contoh singkat cara menginisialisasi dan menggunakan objek kelas ini (diawali `>>> `).
     -   **PERINGATAN UTAMA**: Berikan contoh jika kode dan konteks memberikan skenario penggunaan yang praktis dan jelas. **Lebih baik mengembalikan `null` untuk field ini daripada mengarang (berhalusinasi) skenario yang tidak faktual**
-    -   **PERINTAH KERINGKASAN**: Contoh HARUS ringkas dan to-the-point. Hanya sertakan informasi esensial untuk mendemonstrasikan penggunaan. Hindari skenario yang panjang atau detail yang berlebihan.
+    -   **PERINTAH KERINGKASAN**: Contoh HARUS RINGKAS dan JELAS. Hanya sertakan informasi esensial untuk mendemonstrasikan penggunaan. Hindari skenario yang panjang atau detail yang berlebihan.
     -   Jika contoh dibuat, fokus pada:
         1.  **Alur Kerja Khas**: Tunjukkan skenario penggunaan praktis di dunia nyata secara ringkas.
         2.  **Inisialisasi**: HARUS menyertakan cara membuat instance objek kelas.
         3.  **Pemanggilan Metode**: Tunjukkan pemanggilan 1-2 metode umum setelah inisialisasi untuk mendemonstrasikan alur kerja yang tipikal.
 -   **`keywords`**: Berikan 3-5 kata kunci teknis yang relevan.
--   **Bagian Lain (Opsional)**: Isi `see_also`, `notes`, `references` HANYA jika konteks atau kode memberikan informasi yang sangat jelas untuk itu.
+-   **Bagian Lain (Opsional)**: Isi `see_also`, `notes` HANYA jika konteks atau kode memberikan informasi yang sangat jelas untuk itu.
 """
          
          self.json_parser = PydanticOutputParser(pydantic_object=NumpyDocstring)
@@ -239,11 +250,7 @@ Code Component:
          docstring_lines = []
          
          # 1. Short Summary
-         docstring_lines.append(doc.short_summary)
-
-         # 2. Deprecation Warning
-         if doc.deprecation_warning:
-            docstring_lines.append(f"\n.. deprecated:: {doc.deprecation_warning}") 
+         docstring_lines.append(doc.short_summary) 
 
          # 3. Extended Summary
          if doc.extended_summary:
@@ -279,9 +286,6 @@ Code Component:
 
          # 13. Notes
          docstring_lines.extend(build_text_section("Notes", doc.notes)) 
-
-         # 14. References
-         docstring_lines.extend(build_text_section("References", doc.references)) 
 
          # 15. Examples
          docstring_lines.extend(build_text_section("Examples", doc.examples)) 

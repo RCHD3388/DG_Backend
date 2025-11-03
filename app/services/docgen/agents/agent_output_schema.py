@@ -31,9 +31,6 @@ class NumpyDocstring(BaseModel):
     # 1. Summary
     short_summary: str = Field(..., description="Ringkasan satu baris, imperatif untuk fungsi, deskriptif untuk kelas.") 
     
-    # 2. Deprecation (Opsional)
-    deprecation_warning: Optional[str] = Field(None, description="Jika terdepresiasi, berikan pesan peringatan (misal: 'Deprecated since 1.6.0. Use new_func instead.').") 
-
     # 3. Extended Summary (Opsional)
     extended_summary: Optional[str] = Field(None, description="Paragraf deskripsi yang lebih panjang.") 
     
@@ -70,10 +67,7 @@ class NumpyDocstring(BaseModel):
     see_also: Optional[List[Dict[str, str]]] = Field(None, description="Daftar fungsi/kelas terkait (misal: [{'name': 'numpy.mean', 'description': 'Weighted average.'}]).") 
 
     # 13. Notes (Opsional)
-    notes: Optional[str] = Field(None, description="Teks bebas untuk catatan implementasi, algoritma, atau teori.") 
-
-    # 14. References (Opsional)
-    references: Optional[str] = Field(None, description="Teks bebas untuk sitasi literatur.") 
+    notes: Optional[str] = Field(None, description="Teks bebas untuk catatan implementasi, algoritma, atau teori.")  
 
     # 15. Examples (Opsional)
     examples: Optional[str] = Field(None, description="Contoh kode penggunaan dalam format doctest (termasuk '>>> ').") 

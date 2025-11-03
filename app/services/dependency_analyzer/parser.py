@@ -415,7 +415,7 @@ class DependencyParser:
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(serializable_components, f, indent=2)
             
-    def save_record_to_database(self, record_code: str, metadata = {}, collection: str = "documentation_results"):
+    def save_record_to_database(self, record_code: str, metadata = {}, collection: str = "documentation_results", name: Optional[str] = None):
         
         # 1. Penyusunan documents_to_insert (List of Dictionaries)
         documents_to_insert: List[Dict[str, Any]] = []
@@ -441,6 +441,7 @@ class DependencyParser:
         # 2. Penyusunan Dokumen Induk (Record Document)
         record_document = {
             "_id": record_code, # Menggunakan record_code sebagai ID unik
+            "name": name if name is not None else record_code,
             "components": documents_to_insert,
             "meta_information": metadata
         }

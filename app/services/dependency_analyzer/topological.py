@@ -1,5 +1,7 @@
 from typing import Dict, Set, Any, List
 import networkx as nx
+import json
+from app.core.config import DEPENDENCY_GRAPHS_DIR
 
 def get_topological_sort_from_dependencies(DG: nx.DiGraph) -> List[str]:
         
@@ -7,8 +9,34 @@ def get_topological_sort_from_dependencies(DG: nx.DiGraph) -> List[str]:
     # print(list(nx.simple_cycles(DG)))
 
     try:
-        sorted_nodes = list(nx.topological_sort(DG))
-        return sorted_nodes
+        # Get Strongly Connected Components & condensate graph
+        sccs = list(nx.strongly_connected_components(DG))
+        condensatedDG = nx.condensation(DG, sccs)
+
+        # Mapping node
+        scc_map = {}
+        for i, scc in enumerate(sccs):
+            c_node_for_scc = condensatedDG.graph['mapping'][list(scc)[0]]
+            scc_map[c_node_for_scc] = tuple(sorted(scc))
+        
+        # Topological Sorting graph
+        sorted_c_nodes = list(nx.topological_sort(condensatedDG))
+        final_processing_queue = []
+        for c_node in sorted_c_nodes:
+            # Ambil grup komponen asli dari map
+            component_group = scc_map[c_node]
+            
+            # Tambahkan semua komponen dalam grup itu ke antrian akhir
+            final_processing_queue.extend(component_group)
+
+        data_to_save = {
+            "processing_queue": final_processing_queue,
+            "dependencies": list(DG.edges)
+        }
+        with open(DEPENDENCY_GRAPHS_DIR / "topological_sort_results.json", "w") as f:
+            json.dump(data_to_save, f, indent=4)
+            
+        return final_processing_queue
     except nx.NetworkXUnfeasible:
         # Ini terjadi jika ada siklus dependensi (misal: A -> B -> A)
         print("[TopoSort] Error: A cyclic dependency was detected in the graph.")
