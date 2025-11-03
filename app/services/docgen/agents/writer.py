@@ -3,13 +3,14 @@ import json
 from typing import Optional, Dict, Any, List
 import random
 import traceback
+from datetime import datetime
 
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.runnables import Runnable, RunnablePassthrough, RunnableLambda, RunnableWithFallbacks
 from langchain_core.exceptions import OutputParserException
 from app.core.config import DUMMY_TESTING_DIRECTORY
-from app.services.docgen.agents.documentation_output import NumpyDocstring, DocstringParameter, DocstringReturn, DocstringRaise
+from app.services.docgen.agents.agent_output_schema import NumpyDocstring, DocstringParameter, DocstringReturn, DocstringRaise
 
 from ..base import BaseAgent
 from ..state import AgentState
@@ -50,9 +51,8 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
         4.  **BAGAIMANA** (High-Level Approach): Apa pendekatan implementasi garis besarnya (tanpa terlalu teknis)?
 -   **`parameters`**: (PENTING) Deteksi SEMUA parameter dari signatur. Untuk setiap parameter, sediakan 'name', 'type', dan 'description' (dalam Bahasa Indonesia). Deskripsi HARUS mendalam dan mencakup:
     1.  **Signifikansi**: Mengapa parameter ini penting?
-    2.  **Batasan**: Apa rentang nilai yang valid atau *constraints* (misal: "harus integer positif", "tidak boleh None")?
+    2.  **Batasan**: Apa rentang nilai yang valid atau *constraints*?
     3.  **Interdependensi**: Apakah nilainya bergantung atau memengaruhi parameter lain?
-
 -   **`returns`**: (PENTING) Jelaskan nilai yang dikembalikan. Sediakan 'type' dan 'description' (dalam Bahasa Indonesia). Deskripsi HARUS menjelaskan:
     1.  **Representasi**: Apa arti atau yang direpresentasikan oleh nilai ini? (misal: "True jika validasi berhasil, False jika gagal.")
     2.  **Kemungkinan Nilai**: Apa kemungkinan nilai atau rentang spesifik yang dikembalikan?
@@ -91,13 +91,13 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
         3.  **KAPAN** (Scenarios): Kapan skenario atau kondisi ideal untuk menggunakan (membuat instance) kelas ini?
         4.  **BAGAIMANA** (High-Level Overview): Apa pendekatan implementasi garis besarnya? (misal: "Mengenkapsulasi logika untuk...")
 -   **`parameters`**: (PENTING) Deteksi parameter dari constructor (`__init__`). Untuk setiap parameter, sediakan 'name', 'type', dan 'description' (dalam Bahasa Indonesia). Deskripsi HARUS mendalam dan mencakup:
-    1.  **Signifikansi**: Mengapa parameter ini penting untuk inisialisasi? Apa pengaruhnya terhadap instance?
-    2.  **Batasan**: Apa rentang nilai yang valid atau *constraints* (misal: "harus string non-kosong", "harus objek 'Config'")?
-    3.  **Relasi**: Apakah nilainya bergantung atau memengaruhi parameter lain saat inisialisasi?
--   **`attributes`**: (PENTING) Deteksi atribut publik yang relevan (misal: `self.name` yang didefinisikan di `__init__` atau sebagai properti). Untuk setiap atribut, sediakan 'name', 'type', dan 'description' (dalam Bahasa Indonesia). Deskripsi HARUS menjelaskan:
-    1.  **Tujuan/Signifikansi**: Apa tujuan atribut ini dan mengapa ia disimpan/diekspos?
+    1.  **Signifikansi**: Mengapa parameter ini penting untuk inisialisasi?
+    2.  **Batasan**: Apa rentang nilai yang valid atau *constraints*?
+    3.  **Relasi**: Apakah nilainya bergantung atau memengaruhi parameter lain?
+-   **`attributes`**: (PENTING) Deteksi atribut publik yang relevan. Untuk setiap atribut, sediakan 'name', 'type', dan 'description' (dalam Bahasa Indonesia). Deskripsi HARUS menjelaskan:
+    1.  **Tujuan/Signifikansi**: Apa tujuan atribut ini?
     2.  **Tipe/Nilai**: Apa tipe datanya dan apa nilai yang valid?
-    3.  **Dependensi**: Apakah nilainya bergantung pada atribut atau parameter lain?
+    3.  **Dependensi**: Apakah nilainya bergantung pada atribut atau parameter lain? 
 -   **`methods`**: (Opsional) Daftar beberapa metode publik yang paling PENTING (misal: 'fit', 'predict'). Jangan daftarkan *semua* metode.
 -   **`examples`**: (Sangat dianjurkan dan penting) Tulis contoh singkat cara menginisialisasi dan menggunakan objek kelas ini (diawali `>>> `).
     -   **PERINGATAN UTAMA**: Berikan contoh jika kode dan konteks memberikan skenario penggunaan yang praktis dan jelas. **Lebih baik mengembalikan `null` untuk field ini daripada mengarang (berhalusinasi) skenario yang tidak faktual**
@@ -110,21 +110,8 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
 -   **Bagian Lain (Opsional)**: Isi `see_also`, `notes`, `references` HANYA jika konteks atau kode memberikan informasi yang sangat jelas untuk itu.
 """
          
-         # Prompt Koreksi (Poin 3)
-         self.correction_prompt_template: ChatPromptTemplate = ChatPromptTemplate.from_messages([
-            ("system", 
-               "You are a JSON correction expert. A previous AI's attempt to generate a valid JSON object failed. "
-               "Your task is to fix the provided malformed JSON based on the given parsing error. "
-               "You MUST ONLY output the corrected, VALID JSON object based on the Pydantic schema. Do not add any other text or explanations."),
-            ("human", 
-               "CORRECTION TASK:\n\n"
-               "PARSING ERROR:\n---\n{error_message}\n---\n\n"
-               "MALFORMED JSON:\n---\n{bad_output}\n---")
-         ])
-         
          self.json_parser = PydanticOutputParser(pydantic_object=NumpyDocstring)
          self.main_llm = self.llm 
-         self.corrector_llm = self.llm 
          
          # Chain akan dibuat saat inisialisasi atau sebelum pemanggilan pertama
          self.full_writer_chain: Optional[Runnable] = self._setup_writer_chain() # Poin 2
@@ -136,17 +123,25 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
          return self.rules_for_class_template if is_class else self.rules_for_function_template
 
 
-      def _get_main_prompt(self) -> ChatPromptTemplate:
+      def _build_human_prompt(self, state: AgentState) -> str:
          """Menyusun prompt utama Writer."""
          
-         # Template utama akan membutuhkan input dari state:
-         # 1. focal_component, 2. context, 3. specific_rules, 4. format_instructions
+         # Cek apakah ini panggilan pertama (hanya ada System message di memori)
+         # Asumsi self.memory adalah List[BaseMessage]
+         is_first_attempt = len(self.memory) <= 1 
+
+         # Ambil bagian yang mungkin dibutuhkan di kedua skenario
+         specific_rules = self._get_specific_prompt(state["component"].component_type)
+         focal_component = state["focal_component"]
          
-         system_msg = self.system_prompt_template + (
-            "\n\nOUTPUT FORMAT INSTRUCTIONS (JSON):\n---\n{format_instructions}\n---"
-         )
-         
-         human_msg = """Available Context: {context}
+         if is_first_attempt:
+            # --- PANGGILAN PERTAMA: PROMPT LENGKAP ---
+            print("[Writer]: Building FULL prompt (First attempt)")
+            
+            context = state.get("context", "No context was gathered.")
+            
+            human_prompt_string = f"""
+Available Context: {context}
 
 {specific_rules}
 
@@ -155,61 +150,56 @@ You MUST only output the JSON object.
 ```python
 {focal_component}
 ```
-         """
-         
-         return ChatPromptTemplate.from_messages([
-            ("system", system_msg),
-            ("human", human_msg),
-         ])
+""" 
+            return human_prompt_string
+
+         else:
+            # --- PANGGILAN KOREKSI: PROMPT HYBRID (HEMAT TOKEN) ---
+            print("[Writer]: Building HYBRID prompt (Correction cycle)")
+            
+            return f"""You have received feedback on your previous JSON output (which is in the chat history). Please re-generate the entire, corrected JSON object based on this feedback.
+
+IMPORTANT:
+1. Refer to your FIRST instruction for the full 'Available Context'.
+2. Use the 'Specific Rules' and 'Code Component' provided AGAIN below.
+
+You MUST only output the new, valid JSON object. Do not add any conversational text.
+{specific_rules}
+
+Code Component:
+```Python
+{focal_component}
+```
+"""
 
       def _setup_writer_chain(self) -> Runnable:
          """Membangun LCEL chain dengan mekanisme Koreksi Diri (2-tingkat)."""
-         
-         # --- Chain Koreksi Diri ---
-         # Chain ini dijalankan jika parsing gagal. Outputnya harus JSON yang valid.
-         # Input: dict{'bad_output': str, 'error_message': str, 'context': str}
-         
-         correction_chain = (
-            self.correction_prompt_template
-            | self.corrector_llm
-            | self.json_parser # Coba parse lagi setelah dikoreksi
-         )
-         
-         # --- Chain Utama ---
-         
-         main_prompt = self._get_main_prompt()
-         
-         # Langkah Parsing Awal dengan Fallback (total 2 upaya parsing)
-         parsing_step_with_fallback = (
-            # Panggil LLM utama
-            self.main_llm 
-            | self.json_parser.with_fallbacks([correction_chain])
-         )
 
+         # 1. Dapatkan format instructions
          format_instructions = self.json_parser.get_format_instructions()
-         # Langkah Pre-processing: Mengumpulkan semua input yang diperlukan
-         pre_process_step = RunnablePassthrough.assign(
-            specific_rules=lambda x: self._get_specific_prompt(x["component"].component_type),
-            context=lambda x: x.get("context", "No context was gathered."),
-            format_instructions=lambda x: format_instructions,
-            # focal_component sudah ada di state
-         )
+         
+         # 2. Buat Prompt Template Konversasional
+         prompt = ChatPromptTemplate.from_messages([
+               ("system", self.system_prompt_template + \
+                        "\n\nOUTPUT FORMAT INSTRUCTIONS (JSON):\n---\n{format_instructions}\n---"),
+               
+               # Ini adalah placeholder untuk SEMUA riwayat obrolan
+               MessagesPlaceholder(variable_name="chat_history")
+         ])
+         
+         # 3. "Panggang" format_instructions ke dalam prompt
+         prompt = prompt.partial(format_instructions=format_instructions)
          
          def print_prompt_and_pass(prompt_value):
             """Mengambil PromptValue, mencetaknya, dan meneruskannya."""
-            with open(DUMMY_TESTING_DIRECTORY / f"DocPrompt_{random.randint(1, 1000)}.txt", "w", encoding="utf-8") as f:
+            with open(DUMMY_TESTING_DIRECTORY / f"DocPrompt_{len(self.memory)}_{datetime.now().strftime("%H_%M_%S")}.txt", "w", encoding="utf-8") as f:
                json.dump(prompt_value.to_string(), f, indent=4, ensure_ascii=False)
             return prompt_value # PENTING: Meneruskan PromptValue ke LLM
          
-         # Full Chain (Input: state | Output: DocstringOutput object)
-         full_chain = (
-            pre_process_step 
-            | main_prompt         # Prompt siap dengan semua variabel
-            | RunnableLambda(print_prompt_and_pass)
-            | parsing_step_with_fallback
-         )
+         # 4. Bangun chain (Prompt -> LLM -> Parser)
+         chain = prompt | RunnableLambda(print_prompt_and_pass) | self.main_llm | self.json_parser
          
-         return full_chain
+         return chain
          
       
       # Ganti implementasi get_formatted_documentation Anda:
@@ -316,18 +306,29 @@ You MUST only output the JSON object.
 
          config = {"tags": [self.name], "callbacks": state["callbacks"]}
          
-         # Hapus pesan user/assistant yang mungkin ada dari Reader atau langkah sebelumnya
-         self._memory = []
+         # 1. Bangun prompt manusia (Lengkap atau Hibrida)
+         human_task_prompt = self._build_human_prompt(state)
          
+         # 2. Tambahkan prompt tugas ini ke memori
+         # Memori sekarang berisi: [..., (feedback_v1), human_task_v2]
+         self.add_to_memory("user", human_task_prompt)
+         
+         # 3. Siapkan input untuk chain konversasional
+         llm_input = {
+               "chat_history": self.memory 
+         }
+         
+         parsed_output: Optional[NumpyDocstring] = None
          try:
             # Invocation
             # Input ke chain adalah dictionary state
-            parsed_output: NumpyDocstring = self.full_writer_chain.invoke(state, config=config)
+            parsed_output = self.full_writer_chain.invoke(llm_input, config=config)
             
-            with open(DUMMY_TESTING_DIRECTORY / f"DocJSONResponse_{random.randint(1, 1000)}.json", "w", encoding="utf-8") as f:
+            with open(DUMMY_TESTING_DIRECTORY / f"DocJSONResponse_{datetime.now().strftime("%H_%M_%S")}.json", "w", encoding="utf-8") as f:
                json.dump(parsed_output.model_dump(), f, indent=4, ensure_ascii=False)
             
-            
+            self.add_to_memory("assistant", parsed_output.model_dump_json())
+
             # Format output (Poin 4: Berhasil)
             state["documentation_json"] = parsed_output
             state['docstring'] = self.get_formatted_documentation(parsed_output)
@@ -346,10 +347,185 @@ You MUST only output the JSON object.
    Manual Review is required for component: {state['component'].id}
             """
             
+            error_msg = f'{{"error": "Generation failed", "details": "{str(e)}"}}'
+            self.add_to_memory("assistant", error_msg)
+            
+            state['documentation_json'] = None
             state['docstring'] = error_docstring
 
          return state
 
+
+# V1 VERSION WRITER COMPONENT 
+# class Writer(BaseAgent):
+      
+#       def __init__(self, config_path: Optional[str] = None):
+#          """Inisialisasi Writer, memuat semua template prompt."""
+#          super().__init__("Writer", config_path=config_path)
+         
+#          # Base prompt dan prompt spesifik dimuat sekali saat inisialisasi
+#          self.system_prompt_template: str = """You are a precise "Documentation Content Generator" AI. Your task is to generate a structured JSON object containing documentation content for a given Python component.
+# """
+         
+#          self.rules_for_function_template: str = """**TASK: Generate Documentation Content for a Function/Method**
+# """
+
+#          self.rules_for_class_template: str = """**TASK: Generate Documentation Content for a Class**
+# """
+         
+#          # Prompt Koreksi (Poin 3)
+#          self.correction_prompt_template: ChatPromptTemplate = ChatPromptTemplate.from_messages([
+#             ("system", 
+#                "You are a JSON correction expert. A previous AI's attempt to generate a valid JSON object failed. "
+#                "Your task is to fix the provided malformed JSON based on the given parsing error. "
+#                "You MUST ONLY output the corrected, VALID JSON object based on the Pydantic schema. Do not add any other text or explanations."),
+#             ("human", 
+#                "CORRECTION TASK:\n\n"
+#                "PARSING ERROR:\n---\n{error_message}\n---\n\n"
+#                "MALFORMED JSON:\n---\n{bad_output}\n---")
+#          ])
+         
+#          self.json_parser = PydanticOutputParser(pydantic_object=NumpyDocstring)
+#          self.main_llm = self.llm 
+#          self.corrector_llm = self.llm 
+         
+#          # Chain akan dibuat saat inisialisasi atau sebelum pemanggilan pertama
+#          self.full_writer_chain: Optional[Runnable] = self._setup_writer_chain() # Poin 2
+         
+         
+#       def _get_specific_prompt(self, type: str) -> str:
+#          """Memilih prompt yang sesuai (kelas atau fungsi/metode)."""
+#          is_class = type.lower() == "class"
+#          return self.rules_for_class_template if is_class else self.rules_for_function_template
+
+
+#       def _get_main_prompt(self) -> ChatPromptTemplate:
+#          """Menyusun prompt utama Writer."""
+         
+#          # Template utama akan membutuhkan input dari state:
+#          # 1. focal_component, 2. context, 3. specific_rules, 4. format_instructions
+         
+#          system_msg = self.system_prompt_template + (
+#             "\n\nOUTPUT FORMAT INSTRUCTIONS (JSON):\n---\n{format_instructions}\n---"
+#          )
+         
+#          human_msg = """Available Context: {context}
+
+# {specific_rules}
+
+# Now, generate a high-quality JSON documentation for the following Code Component based on the Available Context.
+# You MUST only output the JSON object.
+# ```python
+# {focal_component}
+# ```
+#          """
+         
+#          return ChatPromptTemplate.from_messages([
+#             ("system", system_msg),
+#             ("human", human_msg),
+#          ])
+
+#       def _setup_writer_chain(self) -> Runnable:
+#          """Membangun LCEL chain dengan mekanisme Koreksi Diri (2-tingkat)."""
+         
+#          # --- Chain Koreksi Diri ---
+#          # Chain ini dijalankan jika parsing gagal. Outputnya harus JSON yang valid.
+#          # Input: dict{'bad_output': str, 'error_message': str, 'context': str}
+         
+#          correction_chain = (
+#             self.correction_prompt_template
+#             | self.corrector_llm
+#             | self.json_parser # Coba parse lagi setelah dikoreksi
+#          )
+         
+#          # --- Chain Utama ---
+         
+#          main_prompt = self._get_main_prompt()
+         
+#          # Langkah Parsing Awal dengan Fallback (total 2 upaya parsing)
+#          parsing_step_with_fallback = (
+#             # Panggil LLM utama
+#             self.main_llm 
+#             | self.json_parser.with_fallbacks([correction_chain])
+#          )
+
+#          format_instructions = self.json_parser.get_format_instructions()
+#          # Langkah Pre-processing: Mengumpulkan semua input yang diperlukan
+#          pre_process_step = RunnablePassthrough.assign(
+#             specific_rules=lambda x: self._get_specific_prompt(x["component"].component_type),
+#             context=lambda x: x.get("context", "No context was gathered."),
+#             format_instructions=lambda x: format_instructions,
+#             # focal_component sudah ada di state
+#          )
+         
+#          def print_prompt_and_pass(prompt_value):
+#             """Mengambil PromptValue, mencetaknya, dan meneruskannya."""
+#             with open(DUMMY_TESTING_DIRECTORY / f"DocPrompt_{random.randint(1, 1000)}.txt", "w", encoding="utf-8") as f:
+#                json.dump(prompt_value.to_string(), f, indent=4, ensure_ascii=False)
+#             return prompt_value # PENTING: Meneruskan PromptValue ke LLM
+         
+#          # Full Chain (Input: state | Output: DocstringOutput object)
+#          full_chain = (
+#             pre_process_step 
+#             | main_prompt         # Prompt siap dengan semua variabel
+#             | RunnableLambda(print_prompt_and_pass)
+#             | parsing_step_with_fallback
+#          )
+         
+#          return full_chain
+         
+      
+#       # Ganti implementasi get_formatted_documentation Anda:
+#       def get_formatted_documentation(self, doc: NumpyDocstring) -> str:
+#          ...
+
+#       def process(self, state: AgentState) -> AgentState:
+
+#          print("[Writer]: Run - Generating docstring ...")
+
+#          # Pastikan chain sudah di-setup
+#          if not self.full_writer_chain:
+#             self.full_writer_chain = self._setup_writer_chain()
+
+#          config = {"tags": [self.name], "callbacks": state["callbacks"]}
+         
+#          # Hapus pesan user/assistant yang mungkin ada dari Reader atau langkah sebelumnya
+#          self._memory = []
+         
+#          parsed_output: Optional[NumpyDocstring] = None
+#          try:
+#             # Invocation
+#             # Input ke chain adalah dictionary state
+#             parsed_output = self.full_writer_chain.invoke(state, config=config)
+            
+#             with open(DUMMY_TESTING_DIRECTORY / f"DocJSONResponse_{random.randint(1, 1000)}.json", "w", encoding="utf-8") as f:
+#                json.dump(parsed_output.model_dump(), f, indent=4, ensure_ascii=False)
+            
+            
+#             # Format output (Poin 4: Berhasil)
+#             state["documentation_json"] = parsed_output
+#             state['docstring'] = self.get_formatted_documentation(parsed_output)
+            
+#          except (OutputParserException, Exception) as e: 
+#             # Kegagalan Total (Setelah 2 upaya gagal)
+#             print(f"[CRITICAL FAILURE]: Writer Agent failed after all retries. Error: {str(e)}")
+#             print(traceback.format_exc())
+            
+#             # FINAL FALLBACK (Poin 4: Gagal)
+#             # Kita menggunakan string kesalahan sebagai formatted_documentation
+#             error_docstring = f"""
+#    !!! DOCSTRING GENERATION FAILED !!!
+#    The Writer Agent failed to produce valid structured output after all correction attempts.
+#    Error Type: {type(e).__name__}
+#    Manual Review is required for component: {state['component'].id}
+#             """
+            
+#             state['docstring'] = error_docstring
+
+#          return state
+
+
+# BASE VERSION WRITER
 # class Writer(BaseAgent):
 #     """
 #     Agen Writer yang menghasilkan docstring berkualitas tinggi berdasarkan

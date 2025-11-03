@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Tuple, Dict, Any
+from typing import List, Optional, Tuple, Dict, Any, Literal
 
 # Model pembantu untuk struktur yang berulang
 class DocstringParameter(BaseModel):
@@ -80,3 +80,43 @@ class NumpyDocstring(BaseModel):
 
     # Metadata Tambahan (dari skema Anda sebelumnya, ini bagus)
     keywords: List[str] = Field(..., description="A list of relevant keywords or tags for this component.")
+    
+    
+# READER AGENT OUTPUT
+class ReaderOutput(BaseModel):
+    """Skema output JSON untuk Reader."""
+    
+    info_need: bool = Field(
+        ..., 
+        description="True jika informasi tambahan (internal atau eksternal) diperlukan, False jika konteks saat ini cukup."
+    )
+    
+    internal_expand: Optional[List[str]] = Field(
+        default=None, 
+        description="Daftar component ID internal yang perlu diexpand (jika info_need true). Kosongkan jika tidak ada."
+    )
+    
+    external_retrieval: Optional[List[str]] = Field(
+        default=None,
+        description="Daftar query pencarian eksternal (jika info_need true dan benar-benar diperlukan). Kosongkan jika tidak ada."
+    )
+    
+
+# VERIFIER AGENT OUTPUT
+class SectionCritique(BaseModel):
+    """Kritik spesifik untuk satu bagian dari docstring."""
+    section: str = Field(..., description="Bagian yang dievaluasi, misal: 'parameters', 'examples', 'short_summary'.")
+    is_accurate: bool = Field(..., description="Apakah bagian ini akurat secara semantik berdasarkan kode?")
+    critique: str = Field(..., description="Kritik spesifik. Tulis 'Akurat.' jika lolos, atau jelaskan kesalahannya jika gagal.")
+
+class SingleCallVerificationReport(BaseModel):
+    """Laporan verifikasi lengkap dari satu panggilan LLM."""
+    critiques: List[SectionCritique] = Field(..., description="Daftar kritik untuk setiap bagian utama docstring.")
+    
+    # --- PERUBAHAN DIMULAI DI SINI ---
+    suggested_next_step: Literal["finished", "writer", "reader"] = Field(...,
+        description="Keputusan strategis berdasarkan evaluasi. 'finished' (jika semua `is_accurate` true), 'writer' (jika perlu perbaikan konten), 'reader' (jika butuh konteks eksternal)."
+    )
+    suggestion_feedback: str = Field(...,
+        description="Satu paragraf ringkas yang menjelaskan keputusan. Jika 'writer', jelaskan apa yang harus diperbaiki. Jika 'reader', jelaskan KONTEKS SPESIFIK apa yang harus dicari."
+    )

@@ -95,7 +95,7 @@ async def get_all_uploaded_files():
     status_code=200,
     response_model=StandardResponse[ClearDirectorySuccessData]
 )
-async def clear_extracted_projects_directory():
+async def clear_all_directories_files():
     deleted_items_count = 0
     errors = []
 

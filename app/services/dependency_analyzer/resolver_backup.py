@@ -197,12 +197,25 @@ class PrimaryDependencyResolver(DependencyResolver):
                                     for i in range(1, 3):
                                         
                                         name_index_search_key = ".".join(original_calle_module_parts[-i:])
+                                        # candidate_component_id = name_index[name_index_search_key]
                                         
+                                        # if 'ToolAgent.execute' not in name_index_search_key and "HybridAgent" not in name_index_search_key:
+                                        #     continue
                                         
                                         # print(f"-> CC : {component.id} -> {name_index_search_key}")
-                                        # print(f"--> File Path: {component.file_path}")
-                                        # print(f"--> Repo Path: {self.repo_path}")
-                                        # print(f"--> Name Index Search Key: {name_index_search_key}")
+                                        
+                                        # ReI 1. Check apakah ditemukan
+                                        # if candidate_component_id:
+                                            
+                                            # ReI 2. Check kalau C1 --> i = 2, C2 --> Path[-3] sama Path[-2], C3 --> Path[-1] terdapat di name index
+                                            # if i == 2 and original_calle_module_parts[-2] == original_calle_module_parts[-3] and len(name_index[original_calle_module_parts[-1]]) == 1:
+                                                # continue
+                                        if "rev_packb" != name_index_search_key:
+                                            continue
+                                        
+                                        print(f"--> File Path: {component.file_path}")
+                                        print(f"--> Repo Path: {self.repo_path}")
+                                        print(f"--> Name Index Search Key: {name_index_search_key}")
                                         origin_info_wild = self.find_true_origin(
                                             entry_file_path=component.file_path,
                                             component_name=name_index_search_key,
@@ -210,8 +223,8 @@ class PrimaryDependencyResolver(DependencyResolver):
                                         )
                                         if origin_info_wild:
                                             candidate_norm_calle = self.format_origin_to_dot_path(origin_info_wild, self.repo_path)
-                                            # print("=== HASIL WILDCARD DITEMUKAN ===")
-                                            # print(f"  Path Asli   : {candidate_norm_calle}")
+                                            print("=== HASIL WILDCARD DITEMUKAN ===")
+                                            print(f"  Path Asli   : {candidate_norm_calle}")
                                             normalized_callee = candidate_norm_calle
                                             found_relative_match = True
                                             break
@@ -762,6 +775,382 @@ class PrimaryDependencyResolver(DependencyResolver):
         print(f"Tidak dapat menemukan pernyataan import untuk basis '{component_name}' di {entry_file_path}")
         return None
 
+
+
+
+
+
+
+
+    # def trace_symbol_origin(
+    #     self,
+    #     symbol_name: str,
+    #     current_filepath: str,
+    #     root_folder: str,
+    #     visited: Optional[Set[str]] = None
+    # ) -> Optional[Tuple[str, str, str]]:
+    #     """
+    #     (DIPERBARUI)
+    #     Melacak simbol (termasuk method di parent class) secara rekursif.
+    #     """
+    #     if visited is None:
+    #         visited = set()
+
+    #     current_filepath = os.path.abspath(current_filepath)
+    #     # Kunci visited harus (path, symbol_name) untuk mencegah rekursi tak terbatas
+    #     # pada kasus pewarisan yang kompleks.
+    #     visited_key = (current_filepath, symbol_name)
+    #     if visited_key in visited:
+    #         return None
+    #     visited.add(visited_key)
+
+    #     if not os.path.isfile(current_filepath):
+    #         return None
+
+    #     try:
+    #         with open(current_filepath, "r", encoding="utf-8") as f:
+    #             source = f.read()
+    #         mod_tree = ast.parse(source, filename=current_filepath)
+    #     except Exception as e:
+    #         return None
+
+    #     parts = symbol_name.split('.')
+    #     base_name_to_find = parts[0]
+    #     method_name_to_find = ".".join(parts[1:]) if len(parts) > 1 else None
+
+    #     # --- PASS 1: Bangun Peta Impor Lokal ---
+    #     # Peta: 'AliasNama' -> (module_asal, nama_asli, level)
+    #     # e.g., {'BaseAgent': ('.parents', 'BaseAgent', 1)}
+    #     # e.g., {'parents': ('.', 'parents', 1)}
+    #     local_imports = {}
+    #     for node in mod_tree.body:
+    #         if isinstance(node, ast.ImportFrom):
+    #             source_module = node.module
+    #             import_level = node.level
+    #             for alias in node.names:
+    #                 alias_name = alias.asname or alias.name
+    #                 local_imports[alias_name] = (source_module, alias.name, import_level)
+    #         elif isinstance(node, ast.Import):
+    #             for alias in node.names:
+    #                 alias_name = alias.asname or alias.name
+    #                 local_imports[alias_name] = (alias.name, alias.name, 0)
+
+    #     # --- PASS 2: Temukan Definisi / Re-export / Parent ---
+    #     for node in mod_tree.body:
+            
+    #         # --- Kasus 1: Re-export ditemukan (Logika Lama, sedikit diubah) ---
+    #         if isinstance(node, ast.ImportFrom):
+    #             source_module = node.module
+    #             import_level = node.level
+                
+    #             for alias in node.names:
+    #                 if (alias.asname or alias.name) == base_name_to_find:
+    #                     if alias.name == "*": continue
+
+    #                     original_base_name = alias.name
+    #                     new_parts = [original_base_name] + parts[1:]
+    #                     new_symbol_name_to_trace = ".".join(new_parts)
+                        
+    #                     next_filepath = self.static_resolve_module_path(
+    #                         node.module, current_filepath, root_folder, node.level
+    #                     )
+    #                     if next_filepath:
+    #                         return self.trace_symbol_origin(
+    #                             new_symbol_name_to_trace, next_filepath, root_folder, visited
+    #                         )
+    #             if len(node.names) == 1 and node.names[0].name == "*":
+    #                 next_filepath = self.static_resolve_module_path(
+    #                     source_module, current_filepath, root_folder, import_level
+    #                 )     
+    #                 if next_filepath:
+    #                     result = self.trace_symbol_origin(
+    #                         symbol_name, next_filepath, root_folder, visited
+    #                     )
+    #                     if result:
+    #                         return result
+
+    #         # --- Kasus 2: Definisi Ditemukan (Logika Baru) ---
+
+    #         # A. Mencari Function, Class, atau Variabel (jika tidak mencari method)
+    #         if not method_name_to_find:
+    #             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == base_name_to_find:
+    #                 return (current_filepath, symbol_name, "function")
+    #             if isinstance(node, ast.ClassDef) and node.name == base_name_to_find:
+    #                 return (current_filepath, symbol_name, "class")
+    #             if isinstance(node, (ast.Assign, ast.AnnAssign)):
+    #                 for target in (node.targets if isinstance(node, ast.Assign) else [node.target]):
+    #                     if isinstance(target, ast.Name) and target.id == base_name_to_find:
+    #                         return (current_filepath, symbol_name, "variable")
+
+    #         # B. Mencari Method (logika inti baru)
+    #         elif isinstance(node, ast.ClassDef) and node.name == base_name_to_find:
+    #             # Ditemukan Class! (e.g., ToolAgent)
+                
+    #             # Langkah A: Periksa method di class ini (Check Self)
+    #             for inner_node in node.body:
+    #                 if isinstance(inner_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+    #                     if inner_node.name == method_name_to_find:
+    #                         return (current_filepath, symbol_name, "method")
+                
+    #             # Langkah B: Method tidak ada, periksa Parent Class (Check Parents)
+    #             for parent_node in node.bases:
+    #                 parent_name_str = self._get_node_name_str(parent_node) # e.g., "BaseAgent" or "parents.BaseAgent"
+    #                 if not parent_name_str:
+    #                     continue
+                    
+    #                 # Pisahkan parent name, e.g., "parents.BaseAgent" -> "parents", ["BaseAgent"]
+    #                 parent_parts = parent_name_str.split('.')
+    #                 parent_base_symbol = parent_parts[0]
+    #                 parent_attrs = parent_parts[1:]
+
+    #                 next_filepath = None
+    #                 new_symbol_to_trace = None
+
+    #                 # Langkah C: Temukan file definisi Parent
+    #                 if parent_base_symbol in local_imports:
+    #                     # Kasus 1: Parent diimpor (e.g., from .parents import BaseAgent)
+    #                     source_module, original_name, level = local_imports[parent_base_symbol]
+    #                     next_filepath = self.static_resolve_module_path(
+    #                         source_module, current_filepath, root_folder, level
+    #                     )
+    #                     # new_symbol = "BaseAgent.execute" atau "BaseAgent.some_attr.execute"
+    #                     new_symbol_to_trace = ".".join([original_name] + parent_attrs + [method_name_to_find])
+    #                 else:
+    #                     # Kasus 2: Parent di file yang sama (e.g., class ToolAgent(BaseAgent):)
+    #                     next_filepath = current_filepath
+    #                     # new_symbol = "BaseAgent.execute"
+    #                     new_symbol_to_trace = ".".join([parent_base_symbol] + parent_attrs + [method_name_to_find])
+                    
+    #                 if next_filepath and new_symbol_to_trace:
+    #                     # Langkah D: Panggil rekursif untuk melacak method di parent
+    #                     result = self.trace_symbol_origin(
+    #                         new_symbol_to_trace, next_filepath, root_folder, visited
+    #                     )
+    #                     if result:
+    #                         return result # Ditemukan di rantai pewarisan!
+
+    #             # Jika sudah cek self dan semua parent tapi tidak ketemu
+    #             return None
+
+    #     # Tidak ditemukan di file ini
+    #     return None
+
+    # # --- Bagian 3: Fungsi Utama (Entrypoint) (DIPERBARUI) ---
+
+    # def find_true_origin(
+    #     self,
+    #     entry_file_path: str,
+    #     component_name: str,
+    #     project_root: str
+    # ) -> Optional[Tuple[str, str, str]]:
+    #     """
+    #     (DIPERBARUI)
+    #     Fungsi utama untuk menemukan sumber asli dari komponen 
+    #     (termasuk method e.g., "MyClass.my_method").
+    #     """
+        
+    #     try:
+    #         with open(entry_file_path, "r", encoding="utf-8") as f:
+    #             source = f.read()
+    #         entry_tree = ast.parse(source, filename=entry_file_path)
+    #     except Exception as e:
+    #         print(f"Error parsing entry file {entry_file_path}: {e}")
+    #         return None
+
+    #     # --- PERUBAHAN: Dapatkan basis simbol ---
+    #     # e.g., "MyClass" dari "MyClass.my_method"
+    #     base_symbol_to_find = component_name.split('.')[0]
+    #     # --- AKHIR PERUBAHAN ---
+
+    #     for node in entry_tree.body:
+    #         if isinstance(node, ast.ImportFrom):
+    #             source_module = node.module
+    #             import_level = node.level
+                
+    #             # Cek 'from A import MyClass'
+    #             for alias in node.names:
+    #                 # --- PERUBAHAN: Cari berdasarkan 'base_symbol' ---
+    #                 if alias.name == base_symbol_to_find:
+    #                     start_trace_file = self.static_resolve_module_path(
+    #                         source_module, entry_file_path, project_root, import_level
+    #                     )
+    #                     if start_trace_file:
+    #                         # --- PERUBAHAN: Panggil trace dgn nama LENGKAP ---
+    #                         return self.trace_symbol_origin(
+    #                             component_name, # e.g., "MyClass.my_method"
+    #                             start_trace_file, 
+    #                             project_root
+    #                         )
+
+    #             # Cek 'from A import *'
+    #             if len(node.names) == 1 and node.names[0].name == "*":
+    #                 start_trace_file = self.static_resolve_module_path(
+    #                     source_module, entry_file_path, project_root, import_level
+    #                 )
+    #                 if start_trace_file:
+    #                     # --- PERUBAHAN: Panggil trace dgn nama LENGKAP ---
+    #                     result = self.trace_symbol_origin(
+    #                         component_name, # e.g., "MyClass.my_method"
+    #                         start_trace_file, 
+    #                         project_root
+    #                     )
+    #                     if result:
+    #                         return result
+
+    #     # --- PERUBAHAN: Update pesan error ---
+    #     print(f"Tidak dapat menemukan pernyataan import untuk '{base_symbol_to_find}' di {entry_file_path}")
+    #     return None
+
+# def find_true_origin(
+#     self,
+#     entry_file_path: str,
+#     component_name: str,
+#     project_root: str
+# ) -> Optional[Tuple[str, str, str]]:
+#     """
+#     (REVISI)
+#     Menangani definisi lokal DI FILE ENTRI, lalu baru
+#     mencari kecocokan impor.
+#     """
+    
+#     try:
+#         with open(entry_file_path, "r", encoding="utf-8") as f:
+#             source = f.read()
+#         entry_tree = ast.parse(source, filename=entry_file_path)
+#     except Exception as e:
+#         print(f"Error parsing entry file {entry_file_path}: {e}")
+#         return None
+
+#     # --- REVISI DIMULAI: Prioritas 1 - Cek Definisi Lokal ---
+    
+#     # Ambil basis dari component_name (e.g., "Pertama" from "Pertama.execute")
+#     base_symbol_to_find = component_name.split('.')[0]
+
+#     for node in entry_tree.body:
+#         # Cek 'class Pertama'
+#         if isinstance(node, ast.ClassDef) and node.name == base_symbol_to_find:
+#             # Ditemukan! Mulai pelacakan dari file INI (entry_file_path)
+#             return self.trace_symbol_origin(
+#                 component_name,     # Lacak nama lengkap (e.g., "Pertama.execute")
+#                 entry_file_path,    # Mulai dari file ini
+#                 project_root
+#             )
+#         # Cek 'def Pertama' (jika component_name adalah fungsi)
+#         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == base_symbol_to_find:
+#             # Ditemukan! Mulai pelacakan dari file INI
+#             return self.trace_symbol_origin(
+#                 component_name,     # Lacak nama lengkap (e.g., "Pertama")
+#                 entry_file_path,    # Mulai dari file ini
+#                 project_root
+#             )
+#     # --- REVISI SELESAI ---
+
+#     # --- Prioritas 2 - Cek Impor (Sistem Penawaran Anda yang sudah ada) ---
+    
+#     # (Inisialisasi 'best_match' dan 'wildcard_candidates' dipindah ke sini)
+#     best_match = (-1, None, None)
+#     wildcard_candidates = [] 
+
+#     for node in entry_tree.body:
+        
+#         current_match_len = -1
+#         current_start_file = None
+#         current_symbol_to_trace = None
+
+#         # Kasus 1: 'from A.B import C as D'
+#         if isinstance(node, ast.ImportFrom):
+#             source_module = node.module
+#             import_level = node.level
+            
+#             for alias in node.names:
+#                 visible_name = alias.asname or alias.name
+#                 original_name = alias.name
+#                 match_len = -1
+#                 symbol_to_trace = None
+
+#                 # Cek 1: Cocok dengan ALIAS
+#                 if component_name == visible_name or component_name.startswith(visible_name + "."):
+#                     match_len = len(visible_name.split('.'))
+#                     if original_name == "*":
+#                         symbol_to_trace = component_name
+#                     else:
+#                         parts = component_name.split('.')
+#                         parts[0] = original_name 
+#                         symbol_to_trace = ".".join(parts)
+                
+#                 # Cek 2: Cocok dengan NAMA ASLI
+#                 elif component_name == original_name or component_name.startswith(original_name + "."):
+#                     match_len = len(original_name.split('.'))
+#                     symbol_to_trace = component_name
+                
+#                 if match_len > current_match_len:
+#                     current_match_len = match_len
+#                     current_start_file = self.static_resolve_module_path(
+#                         source_module, entry_file_path, project_root, import_level
+#                     )
+#                     current_symbol_to_trace = symbol_to_trace
+
+#             # Cek Wildcard (kumpulkan, jangan tentukan pemenang)
+#             if len(node.names) == 1 and node.names[0].name == "*":
+#                 wildcard_start_file = self.static_resolve_module_path(
+#                     source_module, entry_file_path, project_root, import_level
+#                 )
+#                 if wildcard_start_file:
+#                     wildcard_candidates.append(
+#                         (wildcard_start_file, component_name)
+#                     )
+
+#         # Kasus 2: 'import A.B as C'
+#         elif isinstance(node, ast.Import):
+#             for alias in node.names:
+#                 visible_name = alias.asname or alias.name
+#                 original_name = alias.name 
+
+#                 if component_name == visible_name or component_name.startswith(visible_name + "."):
+#                     match_len = len(visible_name.split('.'))
+#                     if match_len > current_match_len:
+#                         current_match_len = match_len
+#                         current_start_file = self.static_resolve_module_path(
+#                             original_name, entry_file_path, project_root, level=0
+#                         )
+#                         parts = component_name.split('.')
+#                         visible_parts_len = len(visible_name.split('.'))
+#                         if len(parts) == visible_parts_len:
+#                             current_symbol_to_trace = original_name.split('.')[-1]
+#                         else:
+#                             current_symbol_to_trace = ".".join(parts[visible_parts_len:])
+
+#         # Perbarui kecocokan terbaik (best match) dari node ini
+#         if current_start_file and current_match_len > best_match[0]:
+#             best_match = (current_match_len, current_start_file, current_symbol_to_trace)
+
+#     # --- Handoff (Pelacakan) untuk Prioritas 2 ---
+    
+#     final_match_len, final_start_file, final_symbol_to_trace = best_match
+
+#     # Coba kecocokan eksplisit terbaik (jika ada)
+#     if final_match_len > 0: 
+#         if final_start_file:
+#             return self.trace_symbol_origin(
+#                 final_symbol_to_trace,
+#                 final_start_file,
+#                 project_root
+#             )
+
+#     # Coba semua kandidat wildcard satu per satu
+#     if wildcard_candidates:
+#         for start_file, symbol_to_trace in wildcard_candidates:
+#             result = self.trace_symbol_origin(
+#                 symbol_to_trace,
+#                 start_file,
+#                 project_root
+#             )
+#             if result:
+#                 return result 
+
+#     # Jika Prioritas 1 (Lokal) dan 2 (Impor) gagal
+#     print(f"Tidak dapat menemukan '{component_name}' (baik lokal maupun impor) di {entry_file_path}")
+#     return None
 
 class AlternativeDependencyResolver(DependencyResolver):
     """

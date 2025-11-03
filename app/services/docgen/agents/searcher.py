@@ -13,6 +13,7 @@ from app.services.docgen.state import AgentState
 from app.services.docgen.tools.InternalCodeParser import InternalCodeParser
 from app.core.config import DUMMY_TESTING_DIRECTORY
 from app.utils.CustomLogger import CustomLogger
+from app.services.docgen.agents.agent_output_schema import ReaderOutput
 from langchain_core.messages import SystemMessage, HumanMessage
 
 logger = CustomLogger("Searcher")
@@ -137,7 +138,7 @@ class Searcher(BaseAgent):
                 "type": context_type,
                 "signature": target_component.component_signature,
                 "component_type": target_component.component_type,
-                "content": "Reader must request for detailed code context", # target_component.component_signature
+                "content": context_content, # target_component.component_signature
                 "pagerank": self.pagerank_scores.get(dep_id, 0)
             }
             
@@ -334,58 +335,13 @@ class Searcher(BaseAgent):
         print("[Truncate] Tidak ada lagi yang bisa dipotong.")
         return truncated_data,
     
-    def _parse_reader_response(self, reader_response: str) -> ParsedInfoRequest:
-        """Parse the reader's structured XML response using ElementTree."""
-        
-        xml_match = re.search(r'<REQUEST>(.*?)</REQUEST>', reader_response, re.DOTALL)
-        if not xml_match:
-            return ParsedInfoRequest()
-            
-        # Tambahkan root tag agar menjadi XML yang valid untuk parser
-        xml_content = f"<REQUEST>{xml_match.group(1)}</REQUEST>"
-        
-        try:
-            root = ET.fromstring(xml_content)
-
-            # Internal
-            internal_node = root.find('INTERNAL')
-            
-            expand_ids = []
-            if internal_node is not None:
-                expand_node = internal_node.find('EXPAND')
-                if expand_node is not None and expand_node.text:
-                    expand_ids = [eid.strip() for eid in expand_node.text.split(',')]
-
-            # External
-            external_node = root.find('RETRIEVAL')
-            retrieval_queries = []
-            if external_node is not None:
-                # findall akan mendapatkan semua tag QUERY
-                query_node = external_node.find('QUERY')
-                if query_node is not None and query_node.text:
-                    retrieval_queries = [q_node.strip() for q_node in query_node.text.split(',')]
-            
-            return ParsedInfoRequest(
-                internal_requests={
-                    "expand": expand_ids
-                },
-                external_requests=retrieval_queries
-            )
-            
-        except ET.ParseError as e:
-            print(f"Error parsing XML: {e}")
-            return ParsedInfoRequest()
-    
     def process(self, state: AgentState) -> AgentState:
         """
         Titik masuk utama untuk Searcher. Ia memutuskan pencarian mana yang akan dijalankan.
         """
         print("[Searcher]: Run - Gathering More context ...")
 
-        parsed_request = self._parse_reader_response(state["reader_response"])
-        
-        with open(DUMMY_TESTING_DIRECTORY / f"Sech_{state["component"].id}.json", "w", encoding="utf-8") as f:
-            json.dump(parsed_request.to_dict(), f, indent=4, ensure_ascii=False)
+        parsed_request = state.get("reader_response", ReaderOutput(info_need=False))
         
         state = self.gather_internal_information(state, parsed_request)
         state = self.gather_external_information(state, parsed_request)
@@ -395,11 +351,11 @@ class Searcher(BaseAgent):
         
         return state
     
-    def gather_internal_information(self, state: AgentState, parsed_request: ParsedInfoRequest) -> AgentState:
+    def gather_internal_information(self, state: AgentState, parsed_request: ReaderOutput) -> AgentState:
         
-        if parsed_request.internal_requests and parsed_request.internal_requests["expand"]:
+        if parsed_request.internal_expand:
             
-            for comp_id in parsed_request.internal_requests["expand"]:
+            for comp_id in parsed_request.internal_expand:
                 target_component = self.internalCodeParser.get_component_by_id(comp_id)
                 if not target_component:
                     continue
@@ -421,15 +377,15 @@ class Searcher(BaseAgent):
                 
         return state
     
-    def gather_external_information(self, state: AgentState, parsed_request: ParsedInfoRequest) -> AgentState:
+    def gather_external_information(self, state: AgentState, parsed_request: ReaderOutput) -> AgentState:
         
         # 1. Check apakah terdapat external request
-        if not parsed_request.external_requests:
+        if not parsed_request.external_retrieval or len(parsed_request.external_retrieval) == 0:
             return state
         
         # 2. Gather external information
         external_results = {}
-        for query in parsed_request.external_requests:
+        for query in parsed_request.external_retrieval:
             if not query: continue
             
             messages = [

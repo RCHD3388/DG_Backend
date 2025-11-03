@@ -18,7 +18,7 @@ from app.utils.CustomLogger import CustomLogger
 logger = CustomLogger("DepParser")
 
 class DependencyParser:
-    def __init__(self, repo_path: Path, task_id: str, root_module_name: str, resolver_strategy: ResolverStrategy = ResolverStrategy.SECOND):
+    def __init__(self, repo_path: Path, task_id: str, root_module_name: str, resolver_strategy: ResolverStrategy = ResolverStrategy.FIRST):
         self.repo_path = repo_path
         self.relevant_files: List[Path] = []
         self.components: Dict[str, CodeComponent] = {}
@@ -143,6 +143,7 @@ class DependencyParser:
                 
                 self.components[class_id] = component
                 
+                class_header_end_line = end_line
                 # Collect methods within the class
                 for item in node.body:
                     if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -172,12 +173,20 @@ class DependencyParser:
                             component_signature=self._get_source_signature(item),
                             start_line=method_start_line,
                             end_line=method_end_line,
+                            header_end_line=method_end_line,
                             has_docstring=method_has_docstring,
                             docstring=method_docstring
                         )
                         
+                        # set header end line of class if method ends later
+                        if method_start_line > class_header_end_line:
+                            class_header_end_line = method_start_line
+                            
                         self.components[method_id] = method_component
-            
+
+                # set class header end line if __init__ not found
+                self.components[class_id].header_end_line = class_header_end_line
+                
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 # Only collect top-level functions
                 if hasattr(node, 'parent') and isinstance(node.parent, ast.Module):
@@ -207,6 +216,7 @@ class DependencyParser:
                         component_signature=self._get_source_signature(node),
                         start_line=function_start_line,
                         end_line=function_end_line,
+                        header_end_line=function_end_line,
                         has_docstring=has_docstring,
                         docstring=docstring
                     )
@@ -373,10 +383,19 @@ class DependencyParser:
     # --- 2 ADD CLASS METHOD DEPENDENCIES END ---
 
     # --- 3 Add Component Generated Documentation START ---
-    def add_component_generated_doc(self, component_id: str, generated_doc: str):
+    def add_component_generated_doc(self, component_id: str, docgen_final_state: Dict[str, Any]):
         """Add or update the generated documentation for a specific component."""
         if component_id in self.components:
-            self.components[component_id].generated_doc = generated_doc
+            
+            self.components[component_id].docgen_final_state = {
+                "final_state": {
+                    "docstring": docgen_final_state.get("final_state", {}).get("docstring", ""),
+                    "reader_search_attempts": docgen_final_state.get("final_state", {}).get("reader_search_attempts", ""),
+                    "verifier_rejection_count": docgen_final_state.get("final_state", {}).get("verifier_rejection_count", ""),
+                    "documentation_json": docgen_final_state.get("final_state", {}).get("documentation_json", {}).model_dump(),
+                },
+                "usage_stats": docgen_final_state.get("usage_stats", {})
+            }
         else:
             logger.warning_print(f"Component {component_id} not found to add generated documentation.")
     # --- 3 Add Component Generated Documentation END ---

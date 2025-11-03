@@ -6,6 +6,7 @@ import sys
 import logging
 import asyncio
 import time
+from typing import Dict, Any
 from pathlib import Path
 from datetime import timedelta
 import traceback
@@ -62,14 +63,14 @@ def get_component_from_file(filepath: str):
         print(f"Error decoding JSON di file '{filepath}': {e}")
         return {}
 
-def generate_documentation_for_component(component: CodeComponent, orchestrator: Orchestrator) -> str:
+def generate_documentation_for_component(component: CodeComponent, orchestrator: Orchestrator) -> Any:
     """
     Fungsi pembantu untuk menghasilkan dokumentasi untuk satu komponen.
     """
 
     documentation_state = orchestrator.process(component=component)
     
-    return documentation_state.get("docstring", "")
+    return documentation_state
 
 async def generate_documentation_for_project(source_file_path: Path, task_id: str):
     """
@@ -153,24 +154,34 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         )
         
         # Limited component_id
-        limited_component = [ "core.memory.short_term.ShortTermMemory._evict_lru", 
-            "core.memory.long_term.LongTermMemory",
-            "core.memory.long_term.LongTermMemory._save_item",
-            "core.planning.task_planner.TaskPlanner.replan"
-            ]
+        # limited_component = [ "core.memory.short_term.ShortTermMemory._evict_lru", 
+        #     "core.memory.long_term.LongTermMemory",
+        #     "core.memory.long_term.LongTermMemory._save_item",
+        #     "core.planning.task_planner.TaskPlanner.replan"
+        #     ]
+        # Limit Counter
+        batch_process_limit = 10
+        batch_process_counter = 0
         
         # Orchestrator loop - Create documentation
         orchestrator = Orchestrator(repo_path=current_repo_path, internalCodeParser=internalCodeParser)
-        for component_id in sorted_components:
-            component = components[component_id]
+        # for component_id in sorted_components:
             
-            if not component:
-                logger.error_print(f"[{task_id}] Component {component_id} not found in components dictionary.")
-                continue
+        #     if batch_process_counter >= batch_process_limit:
+        #         break
+        #     batch_process_counter += 1
             
-            if component_id in limited_component:
-                documentation = generate_documentation_for_component(component, orchestrator)
-                parser.add_component_generated_doc(component_id, documentation)
+        #     # Get component & Check if exists
+        #     component = components[component_id]
+        #     if not component:
+        #         logger.error_print(f"[{task_id}] Component {component_id} not found in components dictionary.")
+        #         continue
+        #     else:
+        #         logger.info_print(f"Processing Component {component_id}")
+            
+        #     # if component_id in limited_component:
+        #     documentation = generate_documentation_for_component(component, orchestrator)
+        #     parser.add_component_generated_doc(component_id, documentation)
             
         end_time = time.time()
         time_format = str(timedelta(seconds=end_time - start_time)).split(".", 1)[0]

@@ -17,6 +17,7 @@ from app.services.docgen.agents.verifier import Verifier
 from app.services.docgen.tools.InternalCodeParser import InternalCodeParser
 from app.schemas.models.code_component_schema import CodeComponent
 from app.utils.CustomLogger import CustomLogger
+from app.services.docgen.agents.agent_output_schema import ReaderOutput
 
 logger = CustomLogger("Orchestrator")
 
@@ -46,6 +47,11 @@ class Orchestrator(OrchestratorBase):
 
     def process(self, component: CodeComponent) -> Dict[str, Any]:
         """Menjalankan seluruh alur kerja dan mengembalikan hasil + statistik."""
+        
+        self.reader.clear_memory()
+        self.searcher.clear_memory()
+        self.writer.clear_memory()
+        self.verifier.clear_memory()
         
         # Setiap proses mendapatkan callback handler baru
         usage_callback = TokenUsageCallback()
@@ -84,14 +90,12 @@ class Orchestrator(OrchestratorBase):
             # 1. READER PROCESS.
             state = self.reader.process(state)
             
-            with open(DUMMY_TESTING_DIRECTORY / f"ReRes{state["reader_search_attempts"]}_{state["component"].id}.md", "w", encoding="utf-8") as f:
-                json.dump(state["reader_response"], f, indent=4, ensure_ascii=False)   
+            with open(DUMMY_TESTING_DIRECTORY / f"ReRes{state["reader_search_attempts"]}_{state["component"].id}.json", "w", encoding="utf-8") as f:
+                json.dump(state["reader_response"].model_dump(), f, indent=4, ensure_ascii=False)   
             
             # Periksa apakah Reader membutuhkan lebih banyak info
-            match = re.search(r'<INFO_NEED>(.*?)</INFO_NEED>', state['reader_response'], re.DOTALL)
-            needs_info = match and match.group(1).strip().lower() == 'true'
-
-            if needs_info and state["reader_search_attempts"] < self.max_reader_search_attempts:
+            reader_output = state.get("reader_response", ReaderOutput(info_need=False))
+            if reader_output.info_need and state["reader_search_attempts"] < self.max_reader_search_attempts:
                 state["reader_search_attempts"] += 1
                 
                 # 2. SEARCHER PROCESS
@@ -103,8 +107,10 @@ class Orchestrator(OrchestratorBase):
                 ])
                 
                 # Continue -> back to reader
-                continue
-            elif needs_info:
+                if state["reader_search_attempts"] < self.max_reader_search_attempts:
+                    continue
+                
+            elif reader_output.info_need:
                 logger.error_print("Reader max attempts reached.")
 
             print("[-----]")
@@ -119,11 +125,72 @@ class Orchestrator(OrchestratorBase):
                 
                 
                 # 4. VERIFIER PROCESS 
-                state = self.verifier.process(state)
-                with open(DUMMY_TESTING_DIRECTORY / f"VerifierState_{state["component"].id}.txt", "w", encoding="utf-8") as f:
-                    json.dump(state["verification_result"], f, indent=4, ensure_ascii=False)
+                if state["verifier_rejection_count"] < self.max_verifier_rejections:
+                    state = self.verifier.process(state)
+                    with open(DUMMY_TESTING_DIRECTORY / f"VerifierState_{state["component"].id}_{state['verifier_rejection_count']}.txt", "w", encoding="utf-8") as f:
+                        json.dump(state["verification_result"], f, indent=4, ensure_ascii=False)
 
-                return self.return_documentation_result(state, usage_callback)
+            
+                # Gunakan .get() secara aman untuk menghindari KeyErrors jika 'formatted' tidak ada (misal: exception)
+                verification_output = state.get("verification_result", {}).get("formatted", {})
+                needs_revision = verification_output.get("needs_revision", True) # Default 'True' jika error
+                suggested_next_step = verification_output.get("suggested_next_step", "writer") # Default 'writer' jika error
+                
+                
+                # 1. Kondisi Selesai (Lolos verifikasi ATAU sudah maks percobaan)
+                if not needs_revision or state['verifier_rejection_count'] >= self.max_verifier_rejections:
+                    if not needs_revision:
+                        print(f"[Orchestrator]: Verifikasi Lolos untuk {state['component'].id}.")
+                    else:
+                        print(f"[Orchestrator]: Verifikasi sudah mencapai batas maksimum ({state['verifier_rejection_count']}). Berhenti.")
+                    
+                    return self.return_documentation_result(state, usage_callback)
+                
+                # 2. Else (Perlu Revisi dan masih ada sisa percobaan)
+                else:
+                    print(f"[Orchestrator]: Verifikasi GAGAL (Percobaan {state['verifier_rejection_count'] + 1}/{self.max_verifier_rejections}). Memulai siklus revisi...")
+                    
+                    # Tambah counter penolakan
+                    state["verifier_rejection_count"] = state['verifier_rejection_count'] + 1
+                    self.verifier.clear_memory()
+                    verifier_prompt = self.verifier.format_suggested_prompt(state)
+                    
+                    # 2.1 Reader Cycle
+                    if suggested_next_step == "reader":
+                        print(f"[Orchestrator]: Saran Verifier: Kembali ke 'Reader' untuk konteks tambahan.")
+                        
+                        # 1. Add context suggestion to reader memory
+                        self.reader.add_to_memory("user", f"Additional context needed: \n{verifier_prompt}")
+                        # 2. Clear Writer and Verifier memory to start fresh 
+                        self.writer.clear_memory()
+                        
+                        # 3. Cycle rules
+                        if state["reader_search_attempts"] < self.max_reader_search_attempts:
+                            # 3.1 Kalau reader seacher masih ada kesempatan, break ke reader-searcher loop
+                            break
+                        else:
+                            # 3.2 Kalau sudah habis, langsung return dengan state sekarang
+                            return self.return_documentation_result(state, usage_callback)
+
+                    # 2.2 Writer Cycle
+                    else:
+                        if suggested_next_step == "writer":
+                            print(f"[Orchestrator]: Saran Verifier: Kembali ke 'Writer' untuk perbaikan konten.")
+                        else:
+                            print(f"[Orchestrator]: Saran Verifier ('{suggested_next_step}') tidak dikenali. Default kembali ke 'Writer'.")
+                        
+                        self.writer.add_to_memory("user", f"Please improve the documentation based on this suggestion: \n{verifier_prompt}")
+
+    
+    def return_documentation_result(self, state: AgentState, usage_callback: TokenUsageCallback) -> Dict[str, Any]:
+        """Mengembalikan hasil dokumentasi akhir dan statistik penggunaan token."""
+        return {
+            "final_state": state,
+            "usage_stats": usage_callback.get_stats()
+        }
+        
+
+
             #     if not state["verification_result"]["needs_revision"] or state['verifier_rejection_count'] >= self.max_reader_search_attempts:
             #         # -> IF DONE (docstring accepted or max rejections reached, exit loop)
             #         if state['verifier_rejection_count'] >= self.max_reader_search_attempts:
@@ -159,14 +226,3 @@ class Orchestrator(OrchestratorBase):
             #                 f"Please improve the docstring based on this suggestion: {state['verification_result']['context_suggestion']}"
             #             )
             #             # Done
-
-    
-    def return_documentation_result(self, state: AgentState, usage_callback: TokenUsageCallback) -> Dict[str, Any]:
-        """Mengembalikan hasil dokumentasi akhir dan statistik penggunaan token."""
-        return {
-            "docstring": state["docstring"],
-            "context": state["context"],
-            "final_state": state,
-            "usage_stats": usage_callback.get_stats()
-        }
-        

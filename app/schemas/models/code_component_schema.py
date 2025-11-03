@@ -31,12 +31,13 @@ class CodeComponent:
     
     # Original source code of the component
     source_code: Optional[str] = ""
-    generated_doc: Optional[str] = ""
+    docgen_final_state: Optional[Dict[str, Any]] = field(default_factory=dict)
     
     # Line numbers in the file (1-indexed)
     component_signature: str = ""
     start_line: int = 0
     end_line: int = 0
+    header_end_line: int = 0
     
     # Whether the component already has a docstring
     has_docstring: bool = False
@@ -53,7 +54,7 @@ class CodeComponent:
             'relative_path': self.relative_path,
             'depends_on': list(self.depends_on),
             'used_by': list(self.used_by),
-            'generated_doc': self.generated_doc,
+            'docgen_final_state': self.docgen_final_state,
             'component_signature': self.component_signature,
             'start_line': self.start_line,
             'end_line': self.end_line,
@@ -72,7 +73,7 @@ class CodeComponent:
             relative_path=data['relative_path'],
             depends_on=set(data.get('depends_on', [])),
             used_by=set(data.get('used_by', [])),
-            generated_doc=data.get('generated_doc', ""),
+            docgen_final_state=data.get('docgen_final_state', ""),
             component_signature=data.get('component_signature', ""),
             start_line=data.get('start_line', 0),
             end_line=data.get('end_line', 0),

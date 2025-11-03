@@ -27,7 +27,12 @@ class InternalCodeParser:
     
     def get_component_docstring(self, component_id: str) -> str:
         """Mengembalikan daftar docstring dari semua komponen."""
-        return self.components.get(component_id, {}).generated_doc
+        component = self.components.get(component_id)
+        if component:
+            return component.docgen_final_state.get("final_state", {}).get("docstring", "")
+        else:
+            return ""
+    
     
     def get_component_source_code(self, component_id: str) -> str:
         """Mengembalikan daftar kode sumber dari semua komponen."""
@@ -55,7 +60,7 @@ class InternalCodeParser:
             with open(file_path, "r", encoding="utf-8") as f:
                 source = f.read()
             start_line = class_component.start_line
-            end_line = class_init_component.end_line
+            end_line = class_init_component.end_line if class_init_component and class_init_component != {} else class_component.header_end_line
             
             # 4b. Get segment
             lines = source.splitlines()
@@ -75,7 +80,8 @@ class InternalCodeParser:
         current_component = self.components.get(component_id, {})
         called_by = current_component.used_by
         
-        # 1. Filter called by IF method
+        # 1. Filter called by IF method 
+        # Mengabaikan called by dari CLASS karena sudah diberikan pada bagian class context
         if current_component.component_type == "method":
             called_by = self.filter_method_used_by_component(component_id, called_by)
         
