@@ -58,6 +58,11 @@ async def analyze_repository(
     background_tasks: BackgroundTasks,
     redis_client: redis.Redis = Depends(get_redis_client) 
 ):
+    print(f"file_name: {file_name}")
+    print(f"config_filename: {body.config_filename}")
+    print(f"process_name: {body.process_name}")
+    
+    
     repo_file_path = UPLOAD_DIRECTORY / file_name
 
     if not repo_file_path.exists() or not repo_file_path.is_file():
@@ -80,7 +85,7 @@ async def analyze_repository(
         generate_documentation_for_project, 
         source_file_path=repo_file_path,
         task_id=new_task.task_id,
-        analyze_name=body.analyze_name if body.analyze_name else None
+        analyze_name=body.process_name if body.process_name else None
     )
 
     response_data = AnalysisStartSuccessData(

@@ -414,7 +414,13 @@ class DependencyParser:
         
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(serializable_components, f, indent=2)
-            
+    
+    def add_component_dependency_graph_urls(self, component_ids: List[str], record_code: str):
+        for component_id in component_ids:
+            if component_id in self.components:
+                component_id_with_underscore = component_id.replace('.', '_')
+                self.components[component_id].dependency_graph_url = f"{record_code}/{component_id_with_underscore}.png"
+    
     def save_record_to_database(self, record_code: str, metadata = {}, collection: str = "documentation_results", name: Optional[str] = None):
         
         # 1. Penyusunan documents_to_insert (List of Dictionaries)
@@ -459,7 +465,7 @@ class DependencyParser:
             
             # Laporan Hasil
             if result.upserted_id:
-                print(f"[DB SUCCESS] Record '{record_code}' berhasil DIBUAT (Insert). Jumlah komponen: {len(documents_to_insert)}.")
+                print(f"[DB SUCCESS] Record '{record_code}' - Name '{name}' berhasil DIBUAT (Insert). Jumlah komponen: {len(documents_to_insert)}.")
             elif result.modified_count > 0:
                 print(f"[DB SUCCESS] Record '{record_code}' berhasil DIPERBARUI (Update). Jumlah komponen: {len(documents_to_insert)}.")
             else:

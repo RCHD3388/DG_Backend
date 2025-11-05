@@ -93,7 +93,7 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
     -   Tekankan pada **tujuan atau peran utamanya** dalam sistem.
     -   **HINDARI** pengulangan nama kelas.
     -   (Contoh: "Mengelola konfigurasi database dan koneksi pool.")
--   **`extended_summary`**: (Opsional) Tulis paragraf deskriptif yang komprehensIF.
+-   **`extended_summary`**: (WAJIB) Tulis paragraf deskriptif yang komprehensIF.
     -   Paragraf ini HARUS mengalir secara naratif (bukan poin-poin).
     -   Informasi HARUS FAKTUAL berdasarkan kode dan konteks, jangan berhalusinasi.
     -   Secara faktual jelaskan:

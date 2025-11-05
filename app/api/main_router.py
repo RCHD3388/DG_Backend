@@ -4,7 +4,7 @@ import shutil
 from typing import List
 
 from fastapi import APIRouter, File, UploadFile, HTTPException, FastAPI
-from app.api.routers import analyze, file, task
+from app.api.routers import analyze, file, task, config, documentation
 from starlette.responses import JSONResponse
 
 # Import konfigurasi UPLOAD_DIRECTORY dari file config
@@ -19,3 +19,5 @@ router = APIRouter(
 router.include_router(file.router)
 router.include_router(analyze.router)
 router.include_router(task.router)
+router.include_router(config.router)
+router.include_router(documentation.router)

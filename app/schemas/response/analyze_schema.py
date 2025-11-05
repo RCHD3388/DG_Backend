@@ -7,4 +7,5 @@ class AnalysisStartSuccessData(BaseModel):
     message: str
     
 class AnalysisRequestBody(BaseModel):
-    analyze_name: str
+    config_filename: str
+    process_name: str

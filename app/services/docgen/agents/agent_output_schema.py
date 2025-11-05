@@ -35,7 +35,7 @@ class NumpyDocstring(BaseModel):
     extended_summary: Optional[str] = Field(None, description="Paragraf deskripsi yang lebih panjang.") 
     
     # 4. Parameters (Untuk Fungsi/Metode)
-    parameters: Optional[List[DocstringParameter]] = Field(None, description="Daftar parameter fungsi/metode.") 
+    parameters: Optional[List[DocstringParameter]] = Field(None, description="Daftar semua parameter fungsi/metode.") 
 
     # --- Bagian Khusus Class ---
     attributes: Optional[List[DocstringParameter]] = Field(None, description="KHUSUS KELAS: Daftar atribut publik kelas.") 
@@ -51,20 +51,23 @@ class NumpyDocstring(BaseModel):
     # 7. Receives (Untuk Generator) (Opsional)
     receives: Optional[List[DocstringParameter]] = Field(None, description="Parameter yang diterima oleh metode .send() generator.") 
 
-    # 8. Other Parameters (Opsional)
-    other_parameters: Optional[List[DocstringParameter]] = Field(None, description="Daftar parameter yang jarang digunakan.") 
-
     # 9. Raises (Opsional)
     raises: Optional[List[DocstringRaise]] = Field(None, description="Daftar error yang mungkin di-raise.") 
+
+    # 11. Warnings (Opsional)
+    warnings_section: Optional[str] = Field(None, description="Teks bebas untuk peringatan umum kepada pengguna.")
+
+
+
 
     # 10. Warns (Opsional)
     warns: Optional[List[Dict[str, str]]] = Field(None, description="Daftar peringatan (misal: [{'warning': 'UserWarning', 'description': '...'}])") 
 
-    # 11. Warnings (Opsional)
-    warnings_section: Optional[str] = Field(None, description="Teks bebas untuk peringatan umum kepada pengguna.") 
-
     # 12. See Also (Opsional)
     see_also: Optional[List[Dict[str, str]]] = Field(None, description="Daftar fungsi/kelas terkait (misal: [{'name': 'numpy.mean', 'description': 'Weighted average.'}]).") 
+
+
+
 
     # 13. Notes (Opsional)
     notes: Optional[str] = Field(None, description="Teks bebas untuk catatan implementasi, algoritma, atau teori.")  

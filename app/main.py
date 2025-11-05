@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Import router dari file yang sudah kita buat
 from app.api import main_router
 # Import konfigurasi
-from app.core.config import UPLOAD_DIRECTORY
+from app.core.config import UPLOAD_DIRECTORY, GRAPH_VISUALIZATION_DIRECTORY
 from contextlib import asynccontextmanager
 from app.core.redis_client import get_redis_client
 from starlette.requests import Request
@@ -14,6 +14,7 @@ from starlette.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.schemas.response_schema import StandardResponse, ErrorDetail
 from app.core.mongo_client import connect_to_mongo, close_mongo_connection
+from fastapi.staticfiles import StaticFiles
 
 import redis
 from app.core.config import initialize_output_directories
@@ -90,6 +91,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount files graph
+app.mount("/graphs", StaticFiles(directory=GRAPH_VISUALIZATION_DIRECTORY), name="graphs")
 
 # --- MENYERTAKAN ROUTER DARI MODUL LAIN ---
 # Ini adalah bagian kunci yang menghubungkan endpoint kita ke aplikasi utama

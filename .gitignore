@@ -4,6 +4,7 @@ __pycache__/
 
 #Upload Files
 uploaded_files/
+uploaded_configs/
 extracted_projects/
 process_outputs/
 

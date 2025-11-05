@@ -34,12 +34,14 @@ PROCESS_OUTPUT_DIR = APP_BASE_DIR / "process_outputs"
 
 # Direktori untuk menyimpan file yang di-upload, relatif terhadap root proyek
 UPLOAD_DIRECTORY = APP_BASE_DIR / "uploaded_files"
+UPLOAD_CONFIGS_DIRECTORY = APP_BASE_DIR / "uploaded_configs"
 EXTRACTED_PROJECTS_DIR = APP_BASE_DIR / "extracted_projects"
 
 DEPENDENCY_GRAPHS_DIR = PROCESS_OUTPUT_DIR / "dependency_graphs"
 COLLECTED_COMPONENTS_DIR = PROCESS_OUTPUT_DIR / "collected_components"
 PYCG_OUTPUT_DIR = PROCESS_OUTPUT_DIR / "pycg_outputs"
 ANALYZE_DIRECTORY = PROCESS_OUTPUT_DIR / "analyze_results"
+GRAPH_VISUALIZATION_DIRECTORY = PROCESS_OUTPUT_DIR / "graph_visualizations"
 DUMMY_TESTING_DIRECTORY = PROCESS_OUTPUT_DIR / "dummy_testing_results"
 
 # Config YAML
@@ -59,7 +61,9 @@ def initialize_output_directories():
         DEPENDENCY_GRAPHS_DIR,
         COLLECTED_COMPONENTS_DIR,
         PYCG_OUTPUT_DIR,
-        DUMMY_TESTING_DIRECTORY
+        DUMMY_TESTING_DIRECTORY,
+        UPLOAD_DIRECTORY,
+        GRAPH_VISUALIZATION_DIRECTORY
         # ANALYZE_DIRECTORY
     ]
     

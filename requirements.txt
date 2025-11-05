@@ -9,3 +9,4 @@ tiktoken
 scipy
 langchain_core
 langchain_google_genai
+graphviz

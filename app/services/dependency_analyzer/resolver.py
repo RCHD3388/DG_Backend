@@ -218,7 +218,7 @@ class PrimaryDependencyResolver(DependencyResolver):
                                         else:
                                             # print("=== HASIL WILDCARD TIDAK DITEMUKAN ===")
                                             pass
-                                        print("")
+                                        # print("")
                                 
                                 # === SPECIAL CHECK RE_IMPORT ===
 

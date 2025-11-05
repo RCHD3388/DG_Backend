@@ -14,7 +14,7 @@ import traceback
 from flask import json
 from app.core.websocket_manager import websocket_manager
 from app.core.redis_client import get_redis_client
-from app.core.config import COLLECTED_COMPONENTS_DIR, EXTRACTED_PROJECTS_DIR, DEPENDENCY_GRAPHS_DIR, PROCESS_OUTPUT_DIR
+from app.core.config import COLLECTED_COMPONENTS_DIR, EXTRACTED_PROJECTS_DIR, DEPENDENCY_GRAPHS_DIR, GRAPH_VISUALIZATION_DIRECTORY
 from app.schemas.models.task_schema import TaskStatus, TaskStatusDetail
 from app.schemas.models.code_component_schema import CodeComponent
 from app.services.dependency_analyzer.parser import DependencyParser
@@ -23,6 +23,7 @@ from app.services.dependency_analyzer.pagerank import get_pagerank_scores
 from app.services.docgen.orchestrator import Orchestrator
 from app.utils.CustomLogger import CustomLogger
 from app.services.docgen.tools.InternalCodeParser import InternalCodeParser
+from app.services.docgen.graph_visualizer import GraphVisualizer
 
 logger = CustomLogger("DocGenerator")
 
@@ -192,6 +193,13 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
                 "formatted": time_format
             }
         }
+        
+        # generate dependency graph visual
+        graph_visualizer = GraphVisualizer(formated_component=parser.components)
+        graph_visualization_result_output = GRAPH_VISUALIZATION_DIRECTORY / task_id
+        success_count, skipped_count, successful_rendered_component_ids = graph_visualizer.generate_all_graphs(graph_visualization_result_output)
+        
+        parser.add_component_dependency_graph_urls(successful_rendered_component_ids, task_id)
         
         parser.save_record_to_database(record_code=task_id, metadata=metadata, name=analyze_name)
         

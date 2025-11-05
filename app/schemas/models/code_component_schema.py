@@ -44,6 +44,7 @@ class CodeComponent:
     
     # Content of the docstring if it exists, empty string otherwise
     docstring: str = ""
+    dependency_graph_url: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert this component to a dictionary representation for JSON serialization."""
@@ -59,7 +60,8 @@ class CodeComponent:
             'start_line': self.start_line,
             'end_line': self.end_line,
             'has_docstring': self.has_docstring,
-            'docstring': self.docstring
+            'docstring': self.docstring,
+            'dependency_graph_url': self.dependency_graph_url
         }
 
     @staticmethod
@@ -78,7 +80,8 @@ class CodeComponent:
             start_line=data.get('start_line', 0),
             end_line=data.get('end_line', 0),
             has_docstring=data.get('has_docstring', False),
-            docstring=data.get('docstring', "")
+            docstring=data.get('docstring', ""),
+            dependency_graph_url=data.get('dependency_graph_url', "")
         )
         return component
 
