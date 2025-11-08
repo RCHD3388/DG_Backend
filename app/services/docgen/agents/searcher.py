@@ -74,24 +74,7 @@ class Searcher(BaseAgent):
         2.  BE CONCISE: Provide only the essential information required to answer the query. Omit any historical background, related trivia, or tangential details.
         3.  ASSUME EXPERT KNOWLEDGE: Do not explain basic programming concepts. Focus strictly on the specific subject of the query.
         """
-
-    def _run_internal_search(self, state: AgentState) -> str:
-        """Menjalankan semua pencarian internal dan memformat hasilnya."""
-        focal_component = state["focal_component"]
-        dependencies = self._find_dependencies(focal_component)
-        used_by = self._find_used_by(focal_component)
-        
-        context_parts = []
-        if dependencies:
-            dep_str = "\n".join([f"<FUNCTION NAME='{name}'>\n{doc}\n</FUNCTION>" for name, doc in dependencies.items()])
-            context_parts.append(f"<DEPENDENCIES>\n{dep_str}\n</DEPENDENCIES>")
-            
-        if used_by:
-            cb_str = "\n".join([f"<USAGE>\n{code}\n</USAGE>" for code in used_by])
-            context_parts.append(f"<used_by>\n{cb_str}\n</used_by>")
-            
-        return "\n" + "\n".join(context_parts) if context_parts else ""
-
+    
 
     # --- Metode Proses Utama ---
     def find_initial_context(self, state: AgentState) -> AgentState:
@@ -426,7 +409,22 @@ class Searcher(BaseAgent):
 #             self.tokenizer = tiktoken.get_encoding("cl100k_base")
 #         except:
 #             self.tokenizer = tiktoken.get_encoding("gpt2")
-
+    # def _run_internal_search(self, state: AgentState) -> str:
+    #     """Menjalankan semua pencarian internal dan memformat hasilnya."""
+    #     focal_component = state["focal_component"]
+    #     dependencies = self._find_dependencies(focal_component)
+    #     used_by = self._find_used_by(focal_component)
+        
+    #     context_parts = []
+    #     if dependencies:
+    #         dep_str = "\n".join([f"<FUNCTION NAME='{name}'>\n{doc}\n</FUNCTION>" for name, doc in dependencies.items()])
+    #         context_parts.append(f"<DEPENDENCIES>\n{dep_str}\n</DEPENDENCIES>")
+            
+    #     if used_by:
+    #         cb_str = "\n".join([f"<USAGE>\n{code}\n</USAGE>" for code in used_by])
+    #         context_parts.append(f"<used_by>\n{cb_str}\n</used_by>")
+            
+    #     return "\n" + "\n".join(context_parts) if context_parts else ""
 #     def _count_tokens(self, text: str) -> int:
 #         """Menghitung jumlah token dalam sebuah string."""
 #         return len(self.tokenizer.encode(text, disallowed_special=()))

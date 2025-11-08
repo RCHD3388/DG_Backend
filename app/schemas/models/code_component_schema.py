@@ -19,6 +19,7 @@ class CodeComponent:
     # Type of component: 'class', 'function', or 'method'
     component_type: str
     
+    
     # Full path to the file containing this component
     file_path: str
     
@@ -26,6 +27,7 @@ class CodeComponent:
     relative_path: str
     
     # Set of component IDs this component depends on
+    component_parents: Set[str] = field(default_factory=set)
     depends_on: Set[str] = field(default_factory=set)
     used_by: Set[str] = field(default_factory=set)
     
@@ -53,6 +55,7 @@ class CodeComponent:
             'component_type': self.component_type,
             'file_path': self.file_path,
             'relative_path': self.relative_path,
+            'component_parents': list(self.component_parents),
             'depends_on': list(self.depends_on),
             'used_by': list(self.used_by),
             'docgen_final_state': self.docgen_final_state,
@@ -73,6 +76,7 @@ class CodeComponent:
             component_type=data['component_type'],
             file_path=data['file_path'],
             relative_path=data['relative_path'],
+            component_parents=set(data.get('component_parents', [])),
             depends_on=set(data.get('depends_on', [])),
             used_by=set(data.get('used_by', [])),
             docgen_final_state=data.get('docgen_final_state', ""),

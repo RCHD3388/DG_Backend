@@ -40,26 +40,27 @@ class DependencyResolver(ABC):
         """
         pass
     
-    def _get_node_name_str(self, node: ast.AST) -> Optional[str]:
-        """
-        Helper untuk mengubah node AST (seperti BaseAgent atau parents.BaseAgent)
-        menjadi string.
-        """
-        if isinstance(node, ast.Name):
-            return node.id
-        if isinstance(node, ast.Attribute):
-            base = self._get_node_name_str(node.value)
-            if base:
-                return f"{base}.{node.attr}"
-        # Mengabaikan hal lain seperti ast.Call, dll.
-        return None
-    
     def get_parent_class_names(self, class_node: ast.ClassDef) -> list[str]:
         """
         Mengambil node ast.ClassDef dan mengembalikan list string
         nama parent class-nya secara lengkap (fully qualified).
         """
         
+        def _get_full_qualified_name(node: ast.AST) -> str:
+            """Helper rekursif untuk mengubah node basis menjadi string nama lengkap."""
+            
+            if isinstance(node, ast.Name):
+                # Kasus dasar: class Babi(Binatang)
+                return node.id
+            elif isinstance(node, ast.Attribute):
+                # Kasus rekursif: class Babi(packa.modula.Binatang)
+                # Dapatkan 'packa.modula' lalu tambahkan '.Binatang'
+                value_str = _get_full_qualified_name(node.value)
+                return f"{value_str}.{node.attr}"
+            else:
+                # Menangani tipe basis yang tidak didukung, misal: class Babi(create_class())
+                return f"<unsupported_base_type: {type(node).__name__}>"
+
         # --- Badan utama fungsi ---
         
         if not isinstance(class_node, ast.ClassDef):
@@ -68,11 +69,244 @@ class DependencyResolver(ABC):
         parent_names = []
         # Iterasi melalui semua parent class di 'bases'
         for base_node in class_node.bases:
-            parent_name = self._get_node_name_str(base_node)
-            if parent_name:
-                parent_names.append(parent_name)
+            parent_names.append(_get_full_qualified_name(base_node))
         
         return parent_names
+    
+class PrimaryDependencyResolver(DependencyResolver):
+    """
+    Resolves dependencies using an alternative, perhaps faster or simpler, method.
+    """
+    def resolve(self, relevant_files: List[Path]) -> None:
+        print("\nResolving dependencies using an primary method...")
+
+        entry_points = [
+            str(p) for p in relevant_files
+        ]
+
+        if not entry_points:
+            print(f"[DependencyResolver] No Python files found to analyze in {self.repo_path} after filtering.")
+            return
+
+        output_json_path = PYCG_OUTPUT_DIR / f"{self.task_id}.json"
+
+        try:
+            command = [
+                settings.PYCG_PYTHON_EXECUTABLE,
+                "-m", "pycg",
+                *entry_points,  # <-- Di sinilah keajaibannya terjadi
+                "--package", str(self.repo_path),
+                "--output", output_json_path,
+            ]
+
+            # clean path
+            clean_env = os.environ.copy()
+            clean_env.pop("PYTHONPATH", None)
+
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=True,
+                env=clean_env
+            )
+
+            # Load pycg data form json output file
+            with open(output_json_path, 'r', encoding='utf-8') as f:
+                pycg_data = json.load(f)
+
+            self._map_pycg_to_components(pycg_data)
+
+            print("[DependencyResolver] PyCG execution successful.")
+
+        except FileNotFoundError:
+            logger.error_print(
+                f"PyCG executable not found at '{settings.PYCG_PYTHON_EXECUTABLE}'. "
+                "Please check the PYCG_PYTHON_EXECUTABLE path in your .env file."
+            )
+            # Anda bisa melempar exception custom di sini jika perlu
+            raise
+        except subprocess.CalledProcessError as e:
+            # Ini akan terjadi jika PyCG gagal (misal, error parsing)
+            logger.error_print(f"PyCG execution failed with return code {e.returncode}")
+            logger.error_print(f"PyCG stderr: {e.stderr}")
+            raise
+    
+    def _normalize_path(self, path_string: str) -> str:
+        return path_string.replace("\\", ".").replace("/", ".")
+
+    def _build_name_index(self) -> dict:
+        name_index = defaultdict(list)
+        for component in self.components.values():
+            if component.component_type == "method":
+                short_name = ".".join(component.id.split('.')[-2:])
+            else:
+                short_name = ".".join(component.id.split('.')[-1:])
+                
+            name_index[short_name].append(component.id)
+        return name_index
+
+    def _map_pycg_to_components(self, raw_pycg_output: dict):
+        """
+        Maps the complete dependency graph from PyCG's JSON output
+        to the internal CodeComponent structure.
+        """
+        name_index = self._build_name_index()
+
+        for component_id, component in self.components.items():
+            
+            relative_path_no_ext = component.relative_path.removesuffix(".py")
+            relative_path_no_ext_module_path = self._normalize_path(relative_path_no_ext)
+            
+            # Format key = relative path + spliced relative module path without extension
+            # karena format nya adalah : menggunaakn "//" untuk sampai ke file tersebut dan menggunakan "." untuk nama komponennya
+            formatted_key = component_id.replace(relative_path_no_ext_module_path, relative_path_no_ext)
+
+            # Get raw calles from raw_pycg_output
+            raw_callees = raw_pycg_output.get(formatted_key)
+
+            # Check and build dependency
+            if raw_callees:
+                for callee in raw_callees:
+                    
+                    # 1. Check if built in module
+                    if callee.startswith("<builtin>"):
+                        continue
+
+                    # Normalize path = tanpa "/" dan "\\"
+                    normalized_callee = self._normalize_path(callee)
+
+                    # 2. Check if plainly exist in components
+                    if normalized_callee not in self.components:
+                        
+                        # 2.1. CHECK & HILANGKAN ROOT NAMESPACE
+                        id_to_check = normalized_callee
+                        module_parts = normalized_callee.split('.')
+                        if self.root_module_name and module_parts and module_parts[0] == self.root_module_name:
+                            # id_to_check = path TANPA root namespace
+                            id_to_check = ".".join(module_parts[1:])
+
+                        # Check apakah ID absolut yang sudah dibersihkan dengan benar ini ada di komponen kita.
+                        if id_to_check in self.components:
+                            normalized_callee = id_to_check
+                        else:
+                            # --- 2.2 TRACE RELATIVE ---
+                            # -> Get caller module parts
+                            # -> Normalize callee REMAINED THE SAME
+                            original_caller_module_parts = component_id.split('.')
+                            if component.component_type == 'method':
+                                caller_module_parts = original_caller_module_parts[:-2]
+                            else: # Function & Class
+                                caller_module_parts = original_caller_module_parts[:-1]
+                            
+                            found_relative_match = False
+                            # 2.2.1 TRACE RELATIVE FULL-DECRESE
+                            for i in range(len(caller_module_parts), -1, -1):
+                                # PARENT -> caller prefix
+                                parent_module_path = ".".join(caller_module_parts[:i])
+                                
+                                # CONCATED path
+                                potential_id = f"{parent_module_path}.{normalized_callee}" if parent_module_path else normalized_callee
+                                
+                                # IF potential was found in components
+                                if potential_id in self.components:
+                                    normalized_callee = potential_id
+                                    found_relative_match = True
+                                    break
+
+                            
+                            # Jika setelah semua upaya tidak ditemukan kecocokan, abaikan.
+                            if not found_relative_match:
+                                
+                                # 2.2.2 TRACE RE-IMPORT ---
+                                candidate_component_ids = []
+                                component_name_length = 0
+                                original_calle_module_parts = normalized_callee.split('.')
+                                
+                                # 1. Get CANDIDATE COMPONENT ID
+                                if len(original_calle_module_parts) >= 2:
+                                    
+                                    # for i in range(2, 0, -1):
+                                    for i in range(1, 3):
+                                        
+                                        name_index_search_key = ".".join(original_calle_module_parts[-i:])
+                                        
+                                        
+                                        # print(f"-> CC : {component.id} -> {name_index_search_key}")
+                                        # print(f"--> File Path: {component.file_path}")
+                                        # print(f"--> Repo Path: {self.repo_path}")
+                                        # print(f"--> Name Index Search Key: {name_index_search_key}")
+                                        origin_info_wild = self.find_true_origin(
+                                            entry_file_path=component.file_path,
+                                            component_name=name_index_search_key,
+                                            project_root=self.repo_path
+                                        )
+                                        if origin_info_wild:
+                                            candidate_norm_calle = self.format_origin_to_dot_path(origin_info_wild, self.repo_path)
+                                            # print("=== HASIL WILDCARD DITEMUKAN ===")
+                                            # print(f"  Path Asli   : {candidate_norm_calle}")
+                                            normalized_callee = candidate_norm_calle
+                                            found_relative_match = True
+                                            break
+                                        else:
+                                            # print("=== HASIL WILDCARD TIDAK DITEMUKAN ===")
+                                            pass
+                                        # print("")
+                                
+                                # === SPECIAL CHECK RE_IMPORT ===
+
+                                if not found_relative_match:
+                                    continue    
+                        # === special steps end ===
+                    
+                    if normalized_callee != component.id:
+                        component.depends_on.add(normalized_callee)
+
+        logger.info_print("Finished mapping PyCG results.")
+        
+    # -----------------------
+    def format_origin_to_dot_path(
+        self,
+        origin_info: Tuple[str, str, str],
+        project_root: Union[str, Path]
+    ) -> str:
+        
+        file_path, original_name, _ = origin_info
+        
+        # 1. Pastikan semua path adalah string absolut untuk perbandingan
+        abs_file_path = os.path.abspath(str(file_path))
+        abs_root_path = os.path.abspath(str(project_root))
+        
+        # 2. Dapatkan path relatif dari file ke root
+        #    e.g., "packa\packb\packc\packc.py"
+        try:
+            relative_path = os.path.relpath(abs_file_path, abs_root_path)
+        except ValueError:
+            # Ini bisa terjadi jika path tidak di bawah root
+            return f"[Error: Path {abs_file_path} tidak di bawah root {abs_root_path}]"
+
+        # 3. Hapus ekstensi .py
+        #    e.g., "packa\packb\packc\packc"
+        module_path, _ = os.path.splitext(relative_path)
+        
+        # 4. Tangani kasus __init__.py
+        #    Jika path-nya "packa\packb\__init__", kita ingin "packa\packb"
+        if os.path.basename(module_path) == "__init__":
+            module_path = os.path.dirname(module_path)
+
+        # 5. Ganti separator path ( \ atau / ) dengan titik .
+        #    e.g., "packa.packb.packc.packc"
+        dot_path_base = module_path.replace(os.path.sep, ".")
+        
+        # 6. Gabungkan dengan nama asli
+        #    e.g., "packa.packb.packc.packc.packc"
+        
+        # Jika module_path adalah root (misalnya __init__.py di root),
+        # dot_path_base akan kosong.
+        if not dot_path_base:
+            return original_name
+        else:
+            return f"{dot_path_base}.{original_name}"
     
     def static_resolve_module_path(
         self,
@@ -133,51 +367,24 @@ class DependencyResolver(ABC):
             return os.path.abspath(candidate_pkg)
 
         return None
-    
-    def format_origin_to_dot_path(
-        self,
-        origin_info: Tuple[str, str, str],
-        project_root: Union[str, Path]
-    ) -> str:
-        
-        file_path, original_name, _ = origin_info
-        
-        # 1. Pastikan semua path adalah string absolut untuk perbandingan
-        abs_file_path = os.path.abspath(str(file_path))
-        abs_root_path = os.path.abspath(str(project_root))
-        
-        # 2. Dapatkan path relatif dari file ke root
-        #    e.g., "packa\packb\packc\packc.py"
-        try:
-            relative_path = os.path.relpath(abs_file_path, abs_root_path)
-        except ValueError:
-            # Ini bisa terjadi jika path tidak di bawah root
-            return f"[Error: Path {abs_file_path} tidak di bawah root {abs_root_path}]"
 
-        # 3. Hapus ekstensi .py
-        #    e.g., "packa\packb\packc\packc"
-        module_path, _ = os.path.splitext(relative_path)
-        
-        # 4. Tangani kasus __init__.py
-        #    Jika path-nya "packa\packb\__init__", kita ingin "packa\packb"
-        if os.path.basename(module_path) == "__init__":
-            module_path = os.path.dirname(module_path)
+    # --- [HELPER BARU] ---
+    def _get_node_name_str(self, node: ast.AST) -> Optional[str]:
+        """
+        Helper untuk mengubah node AST (seperti BaseAgent atau parents.BaseAgent)
+        menjadi string.
+        """
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Attribute):
+            base = self._get_node_name_str(node.value)
+            if base:
+                return f"{base}.{node.attr}"
+        # Mengabaikan hal lain seperti ast.Call, dll.
+        return None
 
-        # 5. Ganti separator path ( \ atau / ) dengan titik .
-        #    e.g., "packa.packb.packc.packc"
-        dot_path_base = module_path.replace(os.path.sep, ".")
-        
-        # 6. Gabungkan dengan nama asli
-        #    e.g., "packa.packb.packc.packc.packc"
-        
-        # Jika module_path adalah root (misalnya __init__.py di root),
-        # dot_path_base akan kosong.
-        if not dot_path_base:
-            return original_name
-        else:
-            return f"{dot_path_base}.{original_name}"
-    
     # --- Bagian 2: Inti Pelacakan Simbol (DIPERBARUI) ---
+
     def trace_symbol_origin(
         self,
         symbol_name: str,
@@ -379,6 +586,16 @@ class DependencyResolver(ABC):
                             module_to_resolve = original_base_name
                             symbol_to_trace_in_next_file = remaining_path # Lacak sisa path
                             
+                            # if symbol_to_trace_in_next_file is None:
+                            #     # Ini adalah base case, kita menemukan modul/paket itu sendiri
+                            #     next_filepath = self.static_resolve_module_path(
+                            #         module_to_resolve, current_filepath, root_folder, level_to_resolve
+                            #     )
+                            #     if next_filepath:
+                            #         # Mengembalikan path file, nama asli, dan tipe 'module'
+                            #         return (next_filepath, symbol_name, original_base_name, "module")
+                            #     else:
+                            #         continue # Gagal resolve
                         # *** AKHIR PERBAIKAN BUG ***
 
                         next_filepath = self.static_resolve_module_path(
@@ -444,537 +661,10 @@ class DependencyResolver(ABC):
                                 root_folder,
                                 visited
                             )
-        
-        current_dir = os.path.dirname(current_filepath)
-
-        # Prioritas 1: Cek apakah 'base_name_to_find' adalah sebuah FOLDER (paket)
-        folder_init_path = os.path.join(current_dir, base_name_to_find, "__init__.py")
-        
-        if os.path.isfile(folder_init_path):
-            if remaining_path:
-                # Misi: "module.ClassB" -> Lacak "ClassB" di dalam folder "module"
-                result = self.trace_symbol_origin(
-                    remaining_path, folder_init_path, root_folder, visited
-                )
-                if result: 
-                    # ingin 'original_symbol' tetap 'module.ClassB'
-                    return result
-
-        # Prioritas 2: Cek apakah 'base_name_to_find' adalah sebuah FILE (modul)
-        file_path = os.path.join(current_dir, base_name_to_find + ".py")
-        
-        if os.path.isfile(file_path):
-            if remaining_path:
-                # Misi: "module.ClassB" -> Lacak "ClassB" di dalam file "module.py"
-                result = self.trace_symbol_origin(
-                    remaining_path, file_path, root_folder, visited
-                )
-                if result: 
-                    return result
-        
         # Jika tidak ada yang ditemukan di file ini
         return None
-    
-class PrimaryDependencyResolver(DependencyResolver):
-    """
-    Resolves dependencies using an alternative, perhaps faster or simpler, method.
-    """
-    def resolve(self, relevant_files: List[Path]) -> None:
-        print("\nResolving dependencies using an primary method...")
 
-        entry_points = [
-            str(p) for p in relevant_files
-        ]
-
-        if not entry_points:
-            print(f"[DependencyResolver] No Python files found to analyze in {self.repo_path} after filtering.")
-            return
-
-        output_json_path = PYCG_OUTPUT_DIR / f"{self.task_id}.json"
-
-        try:
-            command = [
-                settings.PYCG_PYTHON_EXECUTABLE,
-                "-m", "pycg",
-                *entry_points,  # <-- Di sinilah keajaibannya terjadi
-                "--package", str(self.repo_path),
-                "--output", output_json_path,
-            ]
-
-            # clean path
-            clean_env = os.environ.copy()
-            clean_env.pop("PYTHONPATH", None)
-
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                check=True,
-                env=clean_env
-            )
-
-            # Load pycg data form json output file
-            with open(output_json_path, 'r', encoding='utf-8') as f:
-                pycg_data = json.load(f)
-
-            self._map_pycg_to_components(pycg_data)
-
-            print("[DependencyResolver] PyCG execution successful.")
-
-        except FileNotFoundError:
-            logger.error_print(
-                f"PyCG executable not found at '{settings.PYCG_PYTHON_EXECUTABLE}'. "
-                "Please check the PYCG_PYTHON_EXECUTABLE path in your .env file."
-            )
-            # Anda bisa melempar exception custom di sini jika perlu
-            raise
-        except subprocess.CalledProcessError as e:
-            # Ini akan terjadi jika PyCG gagal (misal, error parsing)
-            logger.error_print(f"PyCG execution failed with return code {e.returncode}")
-            logger.error_print(f"PyCG stderr: {e.stderr}")
-            raise
-    
-    def _normalize_path(self, path_string: str) -> str:
-        return path_string.replace("\\", ".").replace("/", ".")
-
-    def _build_name_index(self) -> dict:
-        name_index = defaultdict(list)
-        for component in self.components.values():
-            if component.component_type == "method":
-                short_name = ".".join(component.id.split('.')[-2:])
-            else:
-                short_name = ".".join(component.id.split('.')[-1:])
-                
-            name_index[short_name].append(component.id)
-        return name_index
-
-    def check_pycg_origin_path(self, comp_type: str, origin_path: str, true_path: str) -> int:
-        
-        origin_parts = origin_path.split('.')
-        true_parts = true_path.split('.')
-        
-        cut_length = 2 if comp_type == "method" else 1
-        
-        # Lakukan pemotongan
-        # [:-1] akan mengambil semua kecuali 1 terakhir (function)
-        # [:-2] akan mengambil semua kecuali 2 terakhir (method)
-        cut_origin_parts = origin_parts[:-cut_length]
-        cut_true_parts = true_parts[:-cut_length]
-        
-        # Skor awal adalah jumlah bagian yang ingin kita cocokkan
-        level = len(cut_origin_parts)
-        
-        true_path_search_index = 0
-        for origin_part in cut_origin_parts:
-            
-            # Buat "irisan" (slice) dari true_parts untuk dicari, berdasarkan true_path_search_index
-            search_slice = cut_true_parts[true_path_search_index:]
-            
-            try:
-                # Cari 'origin_part' HANYA di dalam irisan tersebut
-                relative_match_index = search_slice.index(origin_part)
-                # --- Jika Ditemukan ---
-                level -= 1
-                true_path_search_index += relative_match_index + 1
-            except ValueError:
-                # --- Jika Tidak Ditemukan ---
-                pass
-
-        return level
-        
-    def _map_pycg_to_components(self, raw_pycg_output: dict):
-        """
-        Maps the complete dependency graph from PyCG's JSON output
-        to the internal CodeComponent structure.
-        """
-        name_index = self._build_name_index()
-
-        for component_id, component in self.components.items():
-            
-            relative_path_no_ext = component.relative_path.removesuffix(".py")
-            relative_path_no_ext_module_path = self._normalize_path(relative_path_no_ext)
-            
-            # Format key = relative path + spliced relative module path without extension
-            # karena format nya adalah : menggunaakn "//" untuk sampai ke file tersebut dan menggunakan "." untuk nama komponennya
-            formatted_key = component_id.replace(relative_path_no_ext_module_path, relative_path_no_ext)
-
-            # Get raw calles from raw_pycg_output
-            raw_callees = raw_pycg_output.get(formatted_key)
-
-            # Check and build dependency
-            if raw_callees:
-                for callee in raw_callees:
-                    
-                    # 1. Check if built in module
-                    if callee.startswith("<builtin>"):
-                        continue
-
-                    # Normalize path = tanpa "/" dan "\\"
-                    normalized_callee = self._normalize_path(callee)
-
-                    # 2. Check if plainly exist in components
-                    if normalized_callee not in self.components:
-                        
-                        # 2.1. CHECK & HILANGKAN ROOT NAMESPACE
-                        id_to_check = normalized_callee
-                        module_parts = normalized_callee.split('.')
-                        if self.root_module_name and module_parts and module_parts[0] == self.root_module_name:
-                            # id_to_check = path TANPA root namespace
-                            id_to_check = ".".join(module_parts[1:])
-
-                        # Check apakah ID absolut yang sudah dibersihkan dengan benar ini ada di komponen kita.
-                        if id_to_check in self.components:
-                            normalized_callee = id_to_check
-                        else:
-                            # --- 2.2 TRACE RELATIVE ---
-                            # -> Get caller module parts
-                            # -> Normalize callee REMAINED THE SAME
-                            original_caller_module_parts = component_id.split('.')
-                            if component.component_type == 'method':
-                                caller_module_parts = original_caller_module_parts[:-2]
-                            else: # Function & Class
-                                caller_module_parts = original_caller_module_parts[:-1]
-                            
-                            found_relative_match = False
-                            # 2.2.1 TRACE RELATIVE FULL-DECRESE
-                            for i in range(len(caller_module_parts), -1, -1):
-                                # PARENT -> caller prefix
-                                parent_module_path = ".".join(caller_module_parts[:i])
-                                
-                                # CONCATED path
-                                potential_id = f"{parent_module_path}.{normalized_callee}" if parent_module_path else normalized_callee
-                                
-                                # IF potential was found in components
-                                if potential_id in self.components:
-                                    normalized_callee = potential_id
-                                    found_relative_match = True
-                                    break
-
-                            
-                            # Jika setelah semua upaya tidak ditemukan kecocokan, abaikan.
-                            if not found_relative_match:
-                                
-                                # 2.2.2 TRACE RE-IMPORT ---
-                                candidate_component_ids = []
-                                component_name_length = 0
-                                original_calle_module_parts = normalized_callee.split('.')
-                                
-                                # 1. Get CANDIDATE COMPONENT ID
-                                if len(original_calle_module_parts) >= 2:
-                                    
-                                    for i in range(min(3, len(original_calle_module_parts)), 0, -1):
-                                        
-                                        name_index_search_key = ".".join(original_calle_module_parts[-i:])
-                                        
-                                        # Hasilnya set
-                                        origin_informations = self.find_true_origin_v2(
-                                            entry_file_path=component.file_path,
-                                            component_name=name_index_search_key,
-                                            project_root=self.repo_path
-                                        )
-                                        # Check hasil find origins apakah ada isinya
-                                        if origin_informations and len(origin_informations) > 0:
-                                            # same level informations
-                                            highest_identical_level = len(original_calle_module_parts) + 1
-                                            highest_identical_comp_id = None
-                                            
-                                            # lacak semua origin yang menjadi kandidat
-                                            for origin_info_tuple in origin_informations:
-                                                # 1. dapatkan dot format yang tepat
-                                                candidate_norm_calle = self.format_origin_to_dot_path(origin_info_tuple, self.repo_path)
-                                                
-                                                # 2. Melakukan pengecekan apakah terdapat di daftar components
-                                                candidate_component = self.components.get(candidate_norm_calle)
-                                                if candidate_component is None:
-                                                    continue
-                                                
-                                                # 3. MAIN CHECK -
-                                                same_level = len(original_calle_module_parts) + 1
-                                                if candidate_component.component_type == "function" or candidate_component.component_type == "class":
-                                                    same_level = self.check_pycg_origin_path(
-                                                        candidate_component.component_type, 
-                                                        ".".join(original_calle_module_parts), 
-                                                        component.id
-                                                    )
-                                                elif candidate_component.component_type == "method":
-                                                    if i == 1 : continue
-                                                    same_level = self.check_pycg_origin_path(
-                                                        candidate_component.component_type, 
-                                                        ".".join(original_calle_module_parts), 
-                                                        component.id
-                                                    )
-                                                
-                                                # Update state if more similar
-                                                if same_level < highest_identical_level:
-                                                    highest_identical_comp_id = candidate_norm_calle
-                                                    highest_identical_level = same_level
-                                            
-                                            # If component found & get the highest identical level component id
-                                            if highest_identical_comp_id is not None:
-                                                normalized_callee = highest_identical_comp_id
-                                                found_relative_match = True
-                                                break
-                                    
-                                # === SPECIAL CHECK RE_IMPORT ===
-
-                                if not found_relative_match:
-                                    continue    
-                    
-                    # === SPECIAL END STEPS ===
-                    callee_comp = self.components.get(normalized_callee)
-                    
-                    if callee_comp and callee_comp.id != component.id:
-                        # Check .__init__
-                        if (callee_comp.component_type == "method" and normalized_callee.endswith(".__init__")):
-                            # If init & method
-                            class_path = normalized_callee.removesuffix(".__init__")
-                            class_comp = self.components.get(class_path)
-                            
-                            if class_comp and class_comp.component_type == "class":
-                                component.depends_on.add(class_path)
-                            else:
-                                component.depends_on.add(normalized_callee)
-                        else:
-                            # If not init
-                            component.depends_on.add(normalized_callee)
-
-        logger.info_print("Finished mapping PyCG results.")
-        
-    # -----------------------
-    
     # --- Bagian 2: Fungsi Utama (Entrypoint) (VERSI ROMBAKAN FINAL) ---
-    def _check_import_type(
-        self, 
-        module_name: str, 
-        name_to_check: str, 
-        current_filepath: str, 
-        root_folder: str
-    ) -> Optional[int]:
-        """
-        Mengecek jenis 'name_to_check' (misal 'c') yang diimpor dari 'module_name' (misal 'A.B').
-        Mengembalikan:
-        - 1: Jika 'name_to_check' adalah top-level code (def/class/var/re-export) di dalam 'module_name'.
-        - 2: Jika 'name_to_check' adalah sub-folder (paket) di dalam 'module_name'.
-        - 3: Jika 'name_to_check' adalah sub-file (modul) di dalam 'module_name'.
-        - None: Jika tidak ditemukan.
-        """
-        
-        # Dapatkan path file dari modul sumber (misal 'A/B/__init__.py')
-        module_path = self.static_resolve_module_path(
-            module_name, current_filepath, root_folder, level=0
-        )
-        if not module_path:
-            return None # Modul sumbernya saja tidak ditemukan
-        
-        # --- Cek Jenis 1 (Top-level code) ---
-        try:
-            with open(module_path, "r", encoding="utf-8") as f:
-                source = f.read()
-            mod_tree = ast.parse(source, filename=module_path)
-            
-            for node in mod_tree.body:
-                # Cek definisi (def, class, var)
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                    if node.name == name_to_check:
-                        return 1
-                if isinstance(node, (ast.Assign, ast.AnnAssign)):
-                    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-                    for target in targets:
-                        if isinstance(target, ast.Name) and target.id == name_to_check:
-                            return 1
-                # Cek re-export (from . import name_to_check)
-                if isinstance(node, (ast.ImportFrom, ast.Import)):
-                    for alias in node.names:
-                        if (alias.asname or alias.name) == name_to_check:
-                            return 1
-                        
-        except Exception:
-            pass # Gagal parse, abaikan
-
-        # --- Cek Jenis 2 & 3 (Filesystem) ---
-        module_dir = os.path.dirname(module_path)
-        
-        # Cek Jenis 2 (Folder)
-        folder_path = os.path.join(module_dir, name_to_check, "__init__.py")
-        if os.path.isfile(folder_path):
-            return 2
-            
-        # Cek Jenis 3 (File)
-        file_path = os.path.join(module_dir, name_to_check + ".py")
-        if os.path.isfile(file_path):
-            return 3
-
-        return None # Tidak ditemukan
-
-    # --- FUNGSI UTAMA YANG BARU ---
-    def find_true_origin_v2(
-        self,
-        entry_file_path: str,
-        component_name: str,
-        project_root: str,
-        # Parameter baru untuk rekursi
-        depth: int = 0,
-        filter_name: Optional[str] = None
-    ) -> Set[Tuple[str, str, str]]:
-        """
-        (REVISI TOTAL - "Recursive Crawler")
-        Menelusuri graf impor secara rekursif untuk menemukan 'component_name'.
-        """
-        
-        results: Set[Tuple[str, str, str]] = set()
-        
-        # --- REVISI: Tambahkan Batas Kedalaman ---
-        if depth > 6:
-            return set() # Batas kedalaman tercapai
-
-        try:
-            with open(entry_file_path, "r", encoding="utf-8") as f:
-                source = f.read()
-            entry_tree = ast.parse(source, filename=entry_file_path)
-        except Exception as e:
-            return set()
-
-        # --- REVISI: Ubah 'best_match' menjadi 'penampung' ---
-        wildcard_candidates = [] # Menyimpan (source_module, level)
-        p2_type1_candidates = [] # Menyimpan (module, name)
-        p2_type2_3_candidates = [] # Menyimpan (module)
-        p3_alias_candidates = [] # Menyimpan (module)
-        p3_no_alias_candidates = [] # Menyimpan (module)
-        
-        # Langkah 0
-        if not filter_name:
-            result = self.find_true_origin(entry_file_path, component_name, project_root)
-            if result:
-                results.add(result)
-                
-        
-        for node in entry_tree.body:
-            
-            # --- Langkah 1 (Relative ImportFrom) ---
-            if isinstance(node, ast.ImportFrom) and node.level > 0:
-                src_module = node.module
-                import_level = node.level
-                
-                # Check wildcard
-                if len(node.names) == 1 and node.names[0].name == "*":
-                    if not filter_name:
-                        wildcard_candidates.append( (node.module, node.level) )
-                    continue
-                
-                # Loop names
-                for alias in node.names:
-                    visible_name = alias.asname or alias.name
-                    original_name = alias.name 
-                    # filter kesesuaian name yang dicari
-                    if filter_name and visible_name != filter_name:
-                        continue 
-                    
-                    prefix_to_check = original_name
-                    if src_module:
-                        clean_src_module = src_module.lstrip(".")
-                        prefix_to_check = f"{clean_src_module}.{original_name}"
-
-                    # Check apakah prefix sesuai
-                    if component_name.startswith(prefix_to_check):
-                        # from .A.B import C, comptname = A.B.C.namacomp = module = A.B, next symbol = C.newcomp
-                        next_symbol_name = component_name[len(clean_src_module) + 1:]
-                        next_file_path = self.static_resolve_module_path(
-                            src_module, entry_file_path, project_root, import_level
-                        )
-                        
-                        result = self.trace_symbol_origin(
-                            symbol_name = next_symbol_name,
-                            current_filepath=next_file_path,
-                            root_folder=project_root
-                        )
-                        if result:
-                            results.add(result)
-
-            # --- Langkah 2 (Absolute ImportFrom) ---
-            elif isinstance(node, ast.ImportFrom) and node.level == 0:
-                
-                if len(node.names) == 1 and node.names[0].name == "*":
-                    if not filter_name:
-                        wildcard_candidates.append( (node.module, node.level) )
-                    continue
-
-                for alias in node.names:
-                    visible_name = alias.asname or alias.name
-                    if filter_name and visible_name != filter_name:
-                        continue
-                    
-                    # Check import type
-                    import_type = self._check_import_type(
-                        node.module, alias.name, entry_file_path, project_root
-                    )
-                    
-                    if import_type == 1:
-                        # (module, name)
-                        p2_type1_candidates.append( (node.module, alias.name) )
-                    elif import_type in [2, 3]:
-                        # (module.name)
-                        p2_type2_3_candidates.append( (f"{node.module}.{alias.name}") )
-
-            # --- Langkah 3 (Import) ---
-            elif isinstance(node, ast.Import):
-                for alias in node.names:
-                    visible_name = alias.asname or alias.name
-                    if filter_name and visible_name != filter_name:
-                        continue
-                    
-                    if alias.asname:
-                        # (module)
-                        p3_alias_candidates.append( (alias.name) )
-                    else:
-                        # (module, module.sub, module.sub.sub)
-                        parts = alias.name.split('.')
-                        for i in range(1, len(parts) + 1):
-                            p3_no_alias_candidates.append( (".".join(parts[:i])) )
-
-        # --- Langkah 4: Proses Penampung & Rekursi ---
-        
-        # 1. Wildcard
-        for source_module, level in wildcard_candidates:
-            next_filepath = self.static_resolve_module_path(
-                source_module, entry_file_path, project_root, level
-            )
-            if next_filepath:
-                result = self.find_true_origin_v2(
-                    next_filepath, component_name, project_root, depth + 1, filter_name=None
-                )
-                if result: 
-                    results.update(result)
-                
-        # 2. P2 (Tipe 1 - dengan filter 'name')
-        for module, name in p2_type1_candidates:
-            next_filepath = self.static_resolve_module_path(
-                module, entry_file_path, project_root, level=0
-            )
-            if next_filepath:
-                result = self.find_true_origin_v2(
-                    next_filepath, component_name, project_root, depth + 1, filter_name=name
-                )
-                if result: 
-                    results.update(result)
-
-        # 3. P2 (Tipe 2/3), P3 (Alias), P3 (No Alias) - semua tanpa filter 'name'
-        #    (Kita gabungkan semua list ini)
-        all_module_only_candidates = p2_type2_3_candidates + p3_alias_candidates + p3_no_alias_candidates
-        
-        for module in all_module_only_candidates:
-            next_filepath = self.static_resolve_module_path(
-                module, entry_file_path, project_root, level=0
-            )
-            if next_filepath:
-                result = self.find_true_origin_v2(
-                    next_filepath, component_name, project_root, depth + 1, filter_name=None
-                )
-                if result: 
-                    results.update(result)
-
-        # Jika semua rekursi gagal
-        return results
-    
     def find_true_origin(
         self,
         entry_file_path: str,

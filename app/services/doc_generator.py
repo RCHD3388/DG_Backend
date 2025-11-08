@@ -195,13 +195,13 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         }
         
         # generate dependency graph visual
-        graph_visualizer = GraphVisualizer(formated_component=parser.components)
-        graph_visualization_result_output = GRAPH_VISUALIZATION_DIRECTORY / task_id
-        success_count, skipped_count, successful_rendered_component_ids = graph_visualizer.generate_all_graphs(graph_visualization_result_output)
+        # graph_visualizer = GraphVisualizer(formated_component=parser.components)
+        # graph_visualization_result_output = GRAPH_VISUALIZATION_DIRECTORY / task_id
+        # success_count, skipped_count, successful_rendered_component_ids = graph_visualizer.generate_all_graphs(graph_visualization_result_output)
         
-        parser.add_component_dependency_graph_urls(successful_rendered_component_ids, task_id)
+        # parser.add_component_dependency_graph_urls(successful_rendered_component_ids, task_id)
         
-        parser.save_record_to_database(record_code=task_id, metadata=metadata, name=analyze_name)
+        # parser.save_record_to_database(record_code=task_id, metadata=metadata, name=analyze_name)
         
         # --- COMPLETED ---
         final_update = {

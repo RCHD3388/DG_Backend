@@ -22,6 +22,7 @@ class DependencyParser:
         self.repo_path = repo_path
         self.relevant_files: List[Path] = []
         self.components: Dict[str, CodeComponent] = {}
+        self.class_components: Dict[str, CodeComponent] = {}
         self.dependency_graph: Dict[str, List[str]] = {}
         self.modules: Set[str] = set()
 
@@ -59,6 +60,8 @@ class DependencyParser:
 
         # THIRD PASS: class and method dependencies
         self._add_class_method_dependencies()
+        # FOURTH PASS: parent class dependencies
+        self._add_parent_class_dependencies()
 
         # logger.info_print(f"Total components collected: {len(self.components)}")
         return self.components
@@ -142,6 +145,7 @@ class DependencyParser:
                 )
                 
                 self.components[class_id] = component
+                self.class_components[class_id] = component
                 
                 class_header_end_line = end_line
                 # Collect methods within the class
@@ -381,6 +385,31 @@ class DependencyParser:
                 for method_id in method_ids:
                     class_component.depends_on.add(method_id)
     # --- 2 ADD CLASS METHOD DEPENDENCIES END ---
+
+    # --- 2B ADD PARENT CLASS DEPENDENCIES
+    def _add_parent_class_dependencies(self):
+                    
+        # get inheritance, or interface 
+        for component_id, component in self.class_components.items():
+            node = component.node
+            file_path = component.file_path
+            parent_list = self.resolver.get_parent_class_names(node)
+            component_parent_ids = []
+            
+            # loop daftar parent dari node ClassDef
+            for parent in parent_list:
+                # Trace dapatkan semua parent path asli
+                origin_result = self.resolver.trace_symbol_origin(parent, current_filepath=file_path, root_folder=self.repo_path)
+                
+                if origin_result:
+                    # mendapatkan format yang tepat
+                    dot_path = self.resolver.format_origin_to_dot_path(origin_info=origin_result, project_root=self.repo_path)
+                    # Check apakah terdapat di components yang di scan, mencegah ABC, dan class bawaan
+                    if dot_path in self.components:
+                        # Simpan ke component parent Set
+                        component.component_parents.add(dot_path)
+            
+    # --- 2B ADD PARENT CLASS DEPENDENCIES END
 
     # --- 3 Add Component Generated Documentation START ---
     def add_component_generated_doc(self, component_id: str, docgen_final_state: Dict[str, Any]):
