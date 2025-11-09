@@ -1,6 +1,8 @@
 import shutil
 from pathlib import Path
 from app.utils.CustomLogger import CustomLogger
+import json
+from typing import Any
 
 logger = CustomLogger("FileUtils")
 
@@ -36,3 +38,8 @@ def clear_directory_contents(dir_path: Path) -> int:
     
     # Step 3: Return the total count of deleted items.
     return deleted_items_count
+
+def save_docgen_component_process(file_path: Path, content: Any, type: str):
+    if type == "json":
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(content, f, indent=4, ensure_ascii=False)

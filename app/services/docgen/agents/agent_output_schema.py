@@ -5,20 +5,29 @@ from typing import List, Optional, Tuple, Dict, Any, Literal
 class DocstringParameter(BaseModel):
     """Mendefinisikan satu parameter (di Parameters, Attributes, dll)"""
     name: str = Field(..., description="Nama parameter atau atribut.")
-    type: str = Field(..., description="Tipe data dari parameter (misal: 'int', 'str', 'array_like').")
+    type: str = Field(..., description="Tipe data dari parameter (misal: 'int', 'str', 'None', dan lainnya).")
     description: str = Field(..., description="Penjelasan singkat parameter.")
     default: Optional[Any] = Field(None, description="Nilai default, jika ada.")
 
 class DocstringReturn(BaseModel):
     """Mendefinisikan nilai kembali (di Returns atau Yields)"""
-    name: Optional[str] = Field(None, description="Nama variabel yang dikembalikan (opsional).")
-    type: str = Field(..., description="Tipe data dari nilai yang dikembalikan.")
+    type: str = Field(..., description="Tipe data dari nilai yang dikembalikan oleh Returns atau Yields.")
     description: str = Field(..., description="Penjelasan nilai yang dikembalikan.")
 
 class DocstringRaise(BaseModel):
     """Mendefinisikan error yang di-raise"""
     error: str = Field(..., description="Tipe error yang di-raise (misal: 'ValueError', 'LinAlgException').")
     description: str = Field(..., description="Kondisi di mana error ini di-raise.")
+    
+class DocstringWarning(BaseModel):
+    """Mendefinisikan error yang di-raise"""
+    warning: str = Field(..., description="Tipe Warning yang di-raise (misal: 'DeprecationWarning', 'RuntimeWarning').")
+    description: str = Field(..., description="Kondisi di mana warning ini di-raise.")
+    
+class DocstringSeeAlso(BaseModel):
+    """Mendefinisikan error yang di-raise"""
+    name: str = Field(..., description="Fungsi atau Class yang direferensikan (misal: 'core.Agent', 'core.service.file_service').")
+    description: str = Field(..., description="Deskripsi singkat dari item yang direferensikan")
 
 # --- SKEMA OUTPUT UTAMA (Baru) ---
 # Ini menggantikan DocstringOutput Anda sebelumnya
@@ -31,15 +40,14 @@ class NumpyDocstring(BaseModel):
     # 1. Summary
     short_summary: str = Field(..., description="Ringkasan satu baris, imperatif untuk fungsi, deskriptif untuk kelas.") 
     
-    # 3. Extended Summary (Opsional)
+    # 2. Extended Summary (Opsional)
     extended_summary: Optional[str] = Field(None, description="Paragraf deskripsi yang lebih panjang.") 
     
-    # 4. Parameters (Untuk Fungsi/Metode)
+    # 3. Parameters (Untuk Fungsi/Metode)
     parameters: Optional[List[DocstringParameter]] = Field(None, description="Daftar semua parameter fungsi/metode.") 
 
-    # --- Bagian Khusus Class ---
+    # 4. --- Bagian Khusus Class ---
     attributes: Optional[List[DocstringParameter]] = Field(None, description="KHUSUS KELAS: Daftar atribut publik kelas.") 
-    methods: Optional[List[Dict[str, str]]] = Field(None, description="KHUSUS KELAS: Daftar metode publik yang relevan (misal: [{'name': 'my_method(arg1)', 'description': '...'}])") 
     # ---------------------------
 
     # 5. Returns (Untuk Fungsi)
@@ -51,32 +59,23 @@ class NumpyDocstring(BaseModel):
     # 7. Receives (Untuk Generator) (Opsional)
     receives: Optional[List[DocstringParameter]] = Field(None, description="Parameter yang diterima oleh metode .send() generator.") 
 
-    # 9. Raises (Opsional)
+    # 8. Raises (Opsional)
     raises: Optional[List[DocstringRaise]] = Field(None, description="Daftar error yang mungkin di-raise.") 
 
-    # 11. Warnings (Opsional)
+    # 9. Warns (Opsional)
+    warns: Optional[List[DocstringWarning]] = Field(None, description="Daftar Warning (misal: [{'warning': 'UserWarning', 'description': '...'}])") 
+    
+    # 10. Warnings (Opsional)
     warnings_section: Optional[str] = Field(None, description="Teks bebas untuk peringatan umum kepada pengguna.")
 
+    # 11. See Also (Opsional)
+    see_also: Optional[List[DocstringSeeAlso]] = Field(None, description="Daftar fungsi/kelas terkait (misal: [{'name': 'core.Agent', 'description': '...'}]).") 
 
+    # 12. Notes (Opsional)
+    notes: Optional[str] = Field(None, description="Teks bebas untuk catatan implementasi, algoritma, atau teori. Hanya jika hal tersebut penting")  
 
-
-    # 10. Warns (Opsional)
-    warns: Optional[List[Dict[str, str]]] = Field(None, description="Daftar peringatan (misal: [{'warning': 'UserWarning', 'description': '...'}])") 
-
-    # 12. See Also (Opsional)
-    see_also: Optional[List[Dict[str, str]]] = Field(None, description="Daftar fungsi/kelas terkait (misal: [{'name': 'numpy.mean', 'description': 'Weighted average.'}]).") 
-
-
-
-
-    # 13. Notes (Opsional)
-    notes: Optional[str] = Field(None, description="Teks bebas untuk catatan implementasi, algoritma, atau teori.")  
-
-    # 15. Examples (Opsional)
+    # 13. Examples (Opsional)
     examples: Optional[str] = Field(None, description="Contoh kode penggunaan dalam format doctest (termasuk '>>> ').") 
-
-    # Metadata Tambahan (dari skema Anda sebelumnya, ini bagus)
-    keywords: List[str] = Field(..., description="A list of relevant keywords or tags for this component.")
     
     
 # READER AGENT OUTPUT

@@ -19,36 +19,19 @@ from langchain_core.messages import SystemMessage, HumanMessage
 logger = CustomLogger("Searcher")
 
 @dataclass
-class ParsedInfoRequest:
-    """Structured format for parsed information requests.
-    
-    Attributes:
-        internal_requests: Dictionary containing:
-            - expand: requested to expand the code
-        external_requests: List of query strings for external information search
-    """
-    internal_requests: Dict[str, Any] = field(default_factory=lambda: {
-        'expand': []
-    })
-    external_requests: List[str] = field(default_factory=list)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert this component to a dictionary representation for JSON serialization."""
-        return {
-            'internal_requests': {
-                'expand': list(self.internal_requests['expand'])
-            },
-            "external_requests": list(self.external_requests)
-        }
+class InternalSearcherConfig:
+    class_component: Dict[str, Any] = None
+    method_component: Dict[str, Any] = None
+    function_component: Dict[str, Any] = None
 
 class Searcher(BaseAgent):
     """
     Agen Searcher yang bertanggung jawab untuk mengumpulkan konteks.
     Ia bisa melakukan pencarian internal (analisa statis) dan eksternal (via LLM).
     """
-    def __init__(self, config_path: Optional[str] = None, internalCodeParser: InternalCodeParser = None, max_used_by_samples: int = 2, max_context_token: int = 10000):
+    def __init__(self, llm_config: Dict[str, Any] = None, internalCodeParser: InternalCodeParser = None, max_used_by_samples: int = 2, max_context_token: int = 10000):
         # Inisialisasi sebagai agen 'Searcher' untuk mendapatkan LLM yang sesuai dari config
-        super().__init__("searcher", config_path)
+        super().__init__("searcher", llm_config=llm_config)
         self.internalCodeParser = internalCodeParser
         self.all_dependencies = {}
         self.all_used_by = {}
@@ -58,6 +41,7 @@ class Searcher(BaseAgent):
         self.gathered_data = {
             "internal": {
                 "class_context": None,
+                "class_parent": {},
                 "dependencies": {},
                 "used_by": []
             },
@@ -77,9 +61,12 @@ class Searcher(BaseAgent):
     
 
     # --- Metode Proses Utama ---
-    def find_initial_context(self, state: AgentState) -> AgentState:
+    def find_initial_context(self, state: AgentState, 
+                             internal_searcher_config: InternalSearcherConfig = InternalSearcherConfig(class_component = {"dependency": False})
+                             ) -> AgentState:
         
         current_all_dependencies = self.internalCodeParser.find_dependencies(state["component"].id)
+        current_all_parents = self.internalCodeParser.find_parents(state["component"].id)
         all_used_by = self.internalCodeParser.find_called_by(state["component"].id)
         self.pagerank_scores = self.internalCodeParser.find_pagerank_scores()
         
@@ -87,6 +74,7 @@ class Searcher(BaseAgent):
         gathered_data = {
             "internal": {
                 "class_context": None,
+                "class_parent": {},
                 "dependencies": {},
                 "used_by": []
             },
@@ -96,15 +84,22 @@ class Searcher(BaseAgent):
         }
         
         # Sort dependencies by pagerank
-        
         sorted_dependencies = sorted(
             current_all_dependencies, 
             key=lambda dep: self.pagerank_scores.get(dep, 0), 
             reverse=True
         )
         
-        # 1. Gathering dependencies information
+        # 1.1 Gathering dependencies information
         for dep_id in sorted_dependencies:
+            
+            # Class Component : kalau config tidak butuh
+            if state['component'].component_type == "class" and not internal_searcher_config.class_component["dependency"]:
+                continue
+            # Class Component : kalau terdapat pada parent tidak butuh
+            if dep_id in current_all_parents:
+                continue
+            
             target_component = self.internalCodeParser.get_component_by_id(dep_id)
             context_content = self.internalCodeParser.get_component_docstring(dep_id)
             context_type = "documentation"
@@ -123,6 +118,34 @@ class Searcher(BaseAgent):
                 "component_type": target_component.component_type,
                 "content": context_content, # target_component.component_signature
                 "pagerank": self.pagerank_scores.get(dep_id, 0)
+            }
+        
+        # 1.2 Gathering parent information (for class context)
+        sorted_parents = sorted(
+            current_all_parents,
+            key=lambda parent: self.pagerank_scores.get(parent, 0),
+            reverse=True
+        )
+        
+        for parent_id in sorted_parents:
+            target_component = self.internalCodeParser.get_component_by_id(parent_id)
+            context_content = self.internalCodeParser.get_component_docstring(parent_id)
+            context_type = "documentation"
+
+            # Heuristik #1: Fallback ke kode sumber jika docstring tidak memadai
+            if not context_content or len(context_content) < 15:
+                print(f"    -> [Searcher] Docstring untuk '{parent_id}' tidak ada/pendek, mengambil kode sumber.")
+                context_content = self.internalCodeParser.get_component_source_code(parent_id)
+                context_type = "source_code"
+            
+            # Masukkan hasil ke dalam dictionary 'dependencies'
+            gathered_data["internal"]["class_parent"][parent_id] = {
+                "id": parent_id,
+                "type": context_type,
+                "signature": target_component.component_signature,
+                "component_type": target_component.component_type,
+                "content": context_content, # target_component.component_signature
+                "pagerank": self.pagerank_scores.get(parent_id, 0)
             }
             
         # 2. Gathering called by information
@@ -146,8 +169,8 @@ class Searcher(BaseAgent):
         
         # Save gathered data information
         self.gathered_data = gathered_data
-        with open(DUMMY_TESTING_DIRECTORY / f"Raw_res_{state["component"].id}.json", "w", encoding="utf-8") as f:
-            json.dump(gathered_data, f, indent=4, ensure_ascii=False)
+        # with open(DUMMY_TESTING_DIRECTORY / f"Raw_res_{state["component"].id}.json", "w", encoding="utf-8") as f:
+        #     json.dump(gathered_data, f, indent=4, ensure_ascii=False)
         
         return gathered_data
   
@@ -175,7 +198,7 @@ class Searcher(BaseAgent):
             # Pengaman agar tidak terjadi infinite loop
             internal_data = self.gathered_data.get("internal", {})
             external_data = self.gathered_data.get("external", {})
-            if not internal_data.get("dependencies") and not internal_data.get("used_by") and not internal_data.get("class_context") and not external_data:
+            if not internal_data.get("dependencies") and not internal_data.get("used_by") and not internal_data.get("class_context") and not internal_data.get("class_parent") and not external_data:
                 logger.warning_print("Semua konteks telah dipotong. Berhenti.")
                 break
 
@@ -201,6 +224,21 @@ class Searcher(BaseAgent):
                 header = f"### CLASS CONTEXT\n\nThe component is a method within the `{class_name}` class:"
                 formatted_block = f"{header}\n\n```python\n{content}\n```"
                 context_parts.append(formatted_block)
+
+            # --- BLOK BARU UNTUK PARENT CLASS ---
+            # Bagian 1.5: Konteks Kelas Induk
+            class_parents = internal_data.get("class_parent", {})
+            if class_parents:
+                header = "### PARENT CLASS CONTEXT\n\nThe component's class inherits from the following parent class(es):"
+                parent_blocks = []
+                for parent_id, info in class_parents.items():
+                    block_header = f"**Parent Class:** `{parent_id}`\n**Context Type:** {info['type']}"
+                    formatted_block = f"{block_header}\n```python\n{info['content']}\n```"
+                    parent_blocks.append(formatted_block)
+                
+                # Tambahkan sebagai bagian baru
+                context_parts.append(f"{header}\n\n" + "\n---\n".join(parent_blocks))
+            # --- AKHIR BLOK BARU ---
 
             internal_context_blocks = []
             # Bagian 2: Dependensi
@@ -295,7 +333,14 @@ class Searcher(BaseAgent):
             omissions_this_round["external"] = 1
             return truncated_data, omissions_this_round
         
-        # 2. Hapus 'used_by' (contoh penggunaan) terlebih dahulu, karena seringkali
+        # --- Prioritas 2: Hapus (atau ringkas) Konteks Kelas ---
+        class_context = truncated_data.get("internal", {}).get("class_context")
+        if class_context:
+            print("    -> [Truncate] Menghapus konteks kelas sebagai langkah terakhir.")
+            truncated_data["internal"]["class_context"] = None
+            return truncated_data, omissions_this_round
+        
+        # 2.1. Hapus 'used_by' (contoh penggunaan) terlebih dahulu, karena seringkali
         #    kurang krusial dibandingkan struktur dependensi.
         if truncated_data.get("internal", {}).get("used_by"):
             print("[Truncate] (Template) Menghapus satu contoh 'used_by' terakhir.")
@@ -314,6 +359,16 @@ class Searcher(BaseAgent):
             omissions_this_round["dependencies"].append(lowest_rank_dep_id)
             return truncated_data, omissions_this_round
 
+        # --- Prioritas 4 : Hapus parent class ---
+        class_parents_dict = truncated_data.get("internal", {}).get("class_parent")
+        if class_parents_dict:
+            # Hapus satu parent class terakhir (kondisi saat ini telah terurut berdasarkan PageRank)
+            removed_parent_id = list(class_parents_dict.keys())[-1]
+            print(f"    -> [Truncate] Menghapus konteks parent class: {removed_parent_id}")
+            del class_parents_dict[removed_parent_id]
+            omissions_this_round["class_parent"].append(removed_parent_id)
+            return truncated_data, omissions_this_round
+
         # 3. Jika semua sudah habis, tidak ada lagi yang bisa dipotong.
         print("[Truncate] Tidak ada lagi yang bisa dipotong.")
         return truncated_data,
@@ -329,27 +384,28 @@ class Searcher(BaseAgent):
         state = self.gather_internal_information(state, parsed_request)
         state = self.gather_external_information(state, parsed_request)
         
-        with open(DUMMY_TESTING_DIRECTORY / f"RS_res_{state["component"].id}.json", "w", encoding="utf-8") as f:
-            json.dump(self.gathered_data, f, indent=4, ensure_ascii=False)
+        # with open(DUMMY_TESTING_DIRECTORY / f"RS_res_{state["component"].id}.json", "w", encoding="utf-8") as f:
+        #     json.dump(self.gathered_data, f, indent=4, ensure_ascii=False)
         
         return state
     
     def gather_internal_information(self, state: AgentState, parsed_request: ReaderOutput) -> AgentState:
         
         if parsed_request.internal_expand:
+            internal_data = self.gathered_data.get("internal", {})
             
             for comp_id in parsed_request.internal_expand:
+                # Get target component id
                 target_component = self.internalCodeParser.get_component_by_id(comp_id)
                 if not target_component:
                     continue
+                
+                # Get cource code
                 source_code = self.internalCodeParser.get_component_source_code(comp_id)
                 if not source_code:
                     continue
                 
-                if "dependencies" not in self.gathered_data["internal"]:
-                    self.gathered_data["internal"]["dependencies"] = {}
-                
-                self.gathered_data["internal"]["dependencies"][comp_id] = {
+                expanded_data = {
                     "id": comp_id,
                     "type": "source_code (Expanded by request)",
                     "signature": target_component.component_signature,
@@ -357,6 +413,14 @@ class Searcher(BaseAgent):
                     "content": source_code,
                     "pagerank": self.pagerank_scores.get(comp_id, 0)
                 }
+                
+                # Cek apakah comp_id ada di 'class_parent'
+                if comp_id in internal_data.get("class_parent", {}):
+                    self.gathered_data["internal"]["class_parent"][comp_id] = expanded_data
+                
+                # Cek apakah comp_id ada di 'dependencies'
+                elif comp_id in internal_data.get("dependencies", {}):
+                    self.gathered_data["internal"]["dependencies"][comp_id] = expanded_data
                 
         return state
     
@@ -400,6 +464,29 @@ class Searcher(BaseAgent):
 # import tiktoken
 # import re
 # from typing import Dict, Any, List
+
+# @dataclass
+# class ParsedInfoRequest:
+#     """Structured format for parsed information requests.
+    
+#     Attributes:
+#         internal_requests: Dictionary containing:
+#             - expand: requested to expand the code
+#         external_requests: List of query strings for external information search
+#     """
+#     internal_requests: Dict[str, Any] = field(default_factory=lambda: {
+#         'expand': []
+#     })
+#     external_requests: List[str] = field(default_factory=list)
+    
+#     def to_dict(self) -> Dict[str, Any]:
+#         """Convert this component to a dictionary representation for JSON serialization."""
+#         return {
+#             'internal_requests': {
+#                 'expand': list(self.internal_requests['expand'])
+#             },
+#             "external_requests": list(self.external_requests)
+#         }
 
 # class Searcher:
 #     def __init__(self, internal_code_parser: Any, config: Dict):

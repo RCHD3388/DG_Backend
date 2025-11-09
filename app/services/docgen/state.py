@@ -11,7 +11,6 @@ class AgentState(TypedDict):
     focal_component: str
     
     documentation_json: Optional[NumpyDocstring]
-    docstring: Optional[str] 
     
     # State Dinamis
     context: str

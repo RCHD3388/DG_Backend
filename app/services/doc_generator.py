@@ -73,7 +73,10 @@ def generate_documentation_for_component(component: CodeComponent, orchestrator:
     
     return documentation_state
 
-async def generate_documentation_for_project(source_file_path: Path, task_id: str, analyze_name: Optional[str] = None):
+async def generate_documentation_for_project(source_file_path: Path, task_id: str, 
+                                             config_file_path: Path,
+                                             root_folder: str,
+                                             analyze_name: Optional[str] = None):
     """
     Fungsi orkestrator yang mengelola seluruh alur kerja dari awal hingga akhir.
     """
@@ -93,6 +96,18 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         root_module_name = get_project_root_name(current_repo_path)
 
         print(f"[{task_id}] File extracted")
+        
+        # 1.1 Check root folder exist
+        project_root_folder = current_repo_path
+        if root_folder and root_folder != "":
+            candidate_root_folder = current_repo_path / root_folder
+            if candidate_root_folder.is_dir():
+                project_root_folder = candidate_root_folder
+            else:
+                raise FileNotFoundError(
+                    f"Folder root yang ditentukan ('{root_folder}') tidak ditemukan "
+                    f"di path: {candidate_root_folder}"
+                )
 
         # -- Create if not exists --
         dependency_graphs_dir = DEPENDENCY_GRAPHS_DIR
@@ -113,7 +128,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         await redis_client.hset(f"task:{task_id}", mapping=files_update)
         
         print(f"[{task_id}] Parsing repository at {project_extract_path}")
-        parser = DependencyParser(current_repo_path, task_id, root_module_name)
+        parser = DependencyParser(current_repo_path, project_root_folder, task_id, root_module_name)
         
         relevant_files = parser.get_relevant_files()
         
@@ -161,28 +176,28 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         #     "core.planning.task_planner.TaskPlanner.replan"
         #     ]
         # Limit Counter
-        batch_process_limit = 10
+        batch_process_limit = 1
         batch_process_counter = 0
         
         # Orchestrator loop - Create documentation
-        orchestrator = Orchestrator(repo_path=current_repo_path, internalCodeParser=internalCodeParser)
-        # for component_id in sorted_components:
+        orchestrator = Orchestrator(repo_path=current_repo_path, config_path=config_file_path, internalCodeParser=internalCodeParser)
+        for component_id in sorted_components:
             
-        #     if batch_process_counter >= batch_process_limit:
-        #         break
-        #     batch_process_counter += 1
+            if batch_process_counter >= batch_process_limit:
+                break
+            batch_process_counter += 1
             
-        #     # Get component & Check if exists
-        #     component = components[component_id]
-        #     if not component:
-        #         logger.error_print(f"[{task_id}] Component {component_id} not found in components dictionary.")
-        #         continue
-        #     else:
-        #         logger.info_print(f"Processing Component {component_id}")
+            # Get component & Check if exists
+            component = components[component_id]
+            if not component:
+                logger.error_print(f"[{task_id}] Component {component_id} not found in components dictionary.")
+                continue
+            else:
+                logger.info_print(f"Processing Component {component_id}")
             
-        #     # if component_id in limited_component:
-        #     documentation = generate_documentation_for_component(component, orchestrator)
-        #     parser.add_component_generated_doc(component_id, documentation)
+            # if component_id in limited_component:
+            documentation = generate_documentation_for_component(component, orchestrator)
+            parser.add_component_generated_doc(component_id, documentation)
             
         end_time = time.time()
         time_format = str(timedelta(seconds=end_time - start_time)).split(".", 1)[0]
@@ -195,13 +210,13 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         }
         
         # generate dependency graph visual
-        # graph_visualizer = GraphVisualizer(formated_component=parser.components)
-        # graph_visualization_result_output = GRAPH_VISUALIZATION_DIRECTORY / task_id
-        # success_count, skipped_count, successful_rendered_component_ids = graph_visualizer.generate_all_graphs(graph_visualization_result_output)
+        graph_visualizer = GraphVisualizer(formated_component=parser.components)
+        graph_visualization_result_output = GRAPH_VISUALIZATION_DIRECTORY / task_id
+        success_count, skipped_count, successful_rendered_component_ids = graph_visualizer.generate_all_graphs(graph_visualization_result_output)
         
-        # parser.add_component_dependency_graph_urls(successful_rendered_component_ids, task_id)
+        parser.add_component_dependency_graph_urls(successful_rendered_component_ids, task_id)
         
-        # parser.save_record_to_database(record_code=task_id, metadata=metadata, name=analyze_name)
+        parser.save_record_to_database(record_code=task_id, metadata=metadata, name=analyze_name)
         
         # --- COMPLETED ---
         final_update = {

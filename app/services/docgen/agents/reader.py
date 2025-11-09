@@ -27,17 +27,21 @@ class Reader(BaseAgent):
     dan menghasilkan output JSON terstruktur.
     """
     
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, llm_config: Dict[str, Any]):
         """Inisialisasi Reader, parser, template, dan chain."""
-        super().__init__("Reader", config_path=config_path)
+        super().__init__("reader", llm_config=llm_config)
         
         # 2.1. Inisialisasi Parser Pydantic
         self.json_parser = PydanticOutputParser(pydantic_object=ReaderOutput)
         
         # 2.2. Definisi Prompt Sistem (Diadaptasi untuk JSON)
-        self.system_prompt_template: str = """You are a Reader agent responsible for determining if more context is needed to generate a high-quality docstring. You should analyze the code component and current context to make this determination.
+        self.system_prompt_template: str = """You are a "Reader" agent, a specialist in analyzing Python code to determine if enough information is available to write a high-quality documentation/docstring. You will analyze a code component and its surrounding context, which is provided in a structured Markdown format.
 
+**CONTEXT FORMAT YOU WILL RECEIVE:**
+
+The context provided may contain the following sections:
 1. `### CLASS CONTEXT`: If the component is a method, this section shows the class definition and `__init__` method.
+3. `### PARENT CLASS CONTEXT`: If the class inherits, this shows context for its parent class(es).
 2. `### INTERNAL CONTEXT`: This section contains information retrieved from the local codebase.
     - `#### Dependencies`: Lists other components (functions, classes, methods) that the main component calls or used.
     - `#### Usage Examples (called_by)`: Shows real code snippets of how the main component is used elsewhere, if found.
@@ -46,19 +50,20 @@ class Reader(BaseAgent):
         (e.g. computing a novel loss function (NDCG Loss, Alignment and Uniformity Loss, etc), certain novel metrics (Cohen's Kappa, etc), specialized novel ideas)
     - Each query should be a clear, natural language question
 
-Your Task:
+**Your Task:**
 Based on the code component and the provided context, you must decide if you have enough information OR if more context needs to be gathered using the available tools (`EXPAND` for internal code, `RETRIEVAL` for external knowledge).
 
-Output Format:
+**Output Format:**
 Your ENTIRE output MUST be a single, valid JSON object strictly adhering to the schema provided under `OUTPUT FORMAT INSTRUCTIONS`. Do not add any text or explanation outside the JSON structure.
 
-Tool Rules:
+**TOOL RULES:**
 1. `internal_expand` (Internal Code Expansion):
-   - Use this to request the full source code for a dependency ID listed in the `### INTERNAL CONTEXT` under `Dependencies`.
-   - Request ONLY if the existing context (docstring/summary) for that dependency is insufficient to understand its role.
-   - To make a request, you MUST use the component's unique component ID
-   - The component ID you want to expand should be found EXCLUSIVELY in the `Dependencies` block, labeled as `Component: component.id.goes.here`.
-   - **CRITICAL**: You MUST copy the full, dot-separated ID precisely as it appears in the `Dependencies` section.
+   - Use this tool to request the full source code for a component ID that is **explicitly listed** in the provided context.
+   - This is your primary tool for "drilling down" for more detail when a documentation is insufficient.
+   - **VALID SOURCES FOR IDs:** You can request to expand IDs found in:
+        - The `### PARENT CLASS CONTEXT` section (labeled as `Parent Class: ...`).
+        - The `#### Dependencies` section (labeled as `Component: ...`).
+   - **CRITICAL**: You MUST copy the full, dot-separated ID precisely as it appears.
    - **DO NOT** request IDs mentioned elsewhere (e.g., in code examples or external context).
    - **DO NOT** invent, shorten, modify, guess, or infer component IDs in any way.
    - **If an ID is not explicitly listed under `Dependencies`, you CANNOT request it.**
@@ -68,7 +73,7 @@ Tool Rules:
    - (Examples: Novel loss functions, specific niche metrics, very new research concepts).
    - If used, provide concise, clear, natural language search queries.
 
-Decision Logic (`info_need`):
+**DECISION LOGIC (`info_need`):**
 - Set `info_need` to `false` if the current context and code are sufficient to write a good docstring.
 - Set `info_need` to `true` if you need to request more context using `internal_expand` or `external_retrieval`.
 
@@ -162,6 +167,50 @@ Analyze the component and context. Decide if more information is needed via EXPA
 
         return state
     
+
+
+# PROMPT V2
+# self.system_prompt_template: str = """You are a Reader agent responsible for determining if more context is needed to generate a high-quality docstring. You should analyze the code component and current context to make this determination.
+
+# 1. `### CLASS CONTEXT`: If the component is a method, this section shows the class definition and `__init__` method.
+# 3. `### PARENT CLASS CONTEXT`: If the class inherits, this shows context for its parent class(es).
+# 2. `### INTERNAL CONTEXT`: This section contains information retrieved from the local codebase.
+#     - `#### Dependencies`: Lists other components (functions, classes, methods) that the main component calls or used.
+#     - `#### Usage Examples (called_by)`: Shows real code snippets of how the main component is used elsewhere, if found.
+# 3. `### EXTERNAL CONTEXT`: Information retrieved from the LLM:
+#     - External Retrieval is extremely expensive. Only request external open internet retrieval information if the component involves a novel, state of the art, recently-proposed algorithms or techniques.
+#         (e.g. computing a novel loss function (NDCG Loss, Alignment and Uniformity Loss, etc), certain novel metrics (Cohen's Kappa, etc), specialized novel ideas)
+#     - Each query should be a clear, natural language question
+
+# Your Task:
+# Based on the code component and the provided context, you must decide if you have enough information OR if more context needs to be gathered using the available tools (`EXPAND` for internal code, `RETRIEVAL` for external knowledge).
+
+# Output Format:
+# Your ENTIRE output MUST be a single, valid JSON object strictly adhering to the schema provided under `OUTPUT FORMAT INSTRUCTIONS`. Do not add any text or explanation outside the JSON structure.
+
+# Tool Rules:
+# 1. `internal_expand` (Internal Code Expansion):
+#    - Use this to request the full source code for a dependency ID listed in the `### INTERNAL CONTEXT` under `Dependencies`.
+#    - Request ONLY if the existing context (docstring/summary) for that dependency is insufficient to understand its role.
+#    - To make a request, you MUST use the component's unique component ID
+#    - The component ID you want to expand should be found EXCLUSIVELY in the `Dependencies` block, labeled as `Component: component.id.goes.here`.
+#    - **CRITICAL**: You MUST copy the full, dot-separated ID precisely as it appears.
+#    - **DO NOT** request IDs mentioned elsewhere (e.g., in code examples or external context).
+#    - **DO NOT** invent, shorten, modify, guess, or infer component IDs in any way.
+#    - **If an ID is not explicitly listed under `Dependencies`, you CANNOT request it.**
+#    - **Invalid or hallucinated IDs will be ignored.** If you are unsure about an ID, it is better to leave `internal_expand` empty for that ID.
+# 2. `external_retrieval` (External Knowledge Search):
+#    - CRITICAL: This is very expensive. Use ONLY if the code involves novel, state-of-the-art, or very recently proposed algorithms/techniques NOT explainable by standard programming knowledge or existing context.
+#    - (Examples: Novel loss functions, specific niche metrics, very new research concepts).
+#    - If used, provide concise, clear, natural language search queries.
+
+# Decision Logic (`info_need`):
+# - Set `info_need` to `false` if the current context and code are sufficient to write a good docstring.
+# - Set `info_need` to `true` if you need to request more context using `internal_expand` or `external_retrieval`.
+
+# IMPORTANT: Your job is NOT to write the docstring, only to determine if information gathering is complete. Focus on necessity. Often, no extra info is needed.
+# """
+
 
 # BASE VERSION READER V0
 # class Reader(BaseAgent):

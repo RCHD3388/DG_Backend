@@ -10,6 +10,7 @@ from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.runnables import Runnable, RunnablePassthrough, RunnableLambda, RunnableWithFallbacks
 from langchain_core.exceptions import OutputParserException
 from app.core.config import DUMMY_TESTING_DIRECTORY
+from app.utils.file_utils import save_docgen_component_process
 from app.services.docgen.agents.agent_output_schema import NumpyDocstring, DocstringParameter, DocstringReturn, DocstringRaise
 
 from ..base import BaseAgent
@@ -17,14 +18,14 @@ from ..state import AgentState
 
 class Writer(BaseAgent):
       
-      def __init__(self, config_path: Optional[str] = None):
+      def __init__(self, llm_config: Dict[str, Any]):
          """Inisialisasi Writer, memuat semua template prompt."""
-         super().__init__("Writer", config_path=config_path)
+         super().__init__("writer", llm_config=llm_config)
          
          # Base prompt dan prompt spesifik dimuat sekali saat inisialisasi
-         self.system_prompt_template: str = """You are a precise "Documentation Content Generator" AI. Your task is to generate a structured JSON object containing documentation content for a given Python component.
+         self.system_prompt_template: str = """You are a precise "Documentation Content Generator" AI. Your task is to generate a structured JSON object containing documentation content for a given Python code component.
 
-   **PEIMARY DIRECTIVES:**
+   **PRIMARY DIRECTIVES:**
    1.  **Language:** All descriptive text MUST be in professional Bahasa Indonesia. Technical terms, code names, and types MUST remain in English.
    2.  **Output Format:** Your ENTIRE output MUST be a single, valid JSON object that strictly adheres to the provided schema. Do not output any text outside of the JSON structure.
    3.  **Content Focus:** Provide factual, concise content. Do not add formatting like indentation or quotes; the system will render the final docstring.
@@ -52,36 +53,73 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
     -   Tekankan pada **hasil atau efek utamanya**.
     -   **HINDARI** pengulangan nama fungsi.
     -   (Contoh: "Menvalidasi kredensial pengguna terhadap database.")
--   **`extended_summary`**: (WAJIB) Tulis paragraf deskriptif yang komprehensIF.
+    
+-   **`extended_summary`**: (WAJIB) Tulis paragraf deskriptif yang komprehensif.
     -   Paragraf ini HARUS mengalir secara naratif (bukan poin-poin).
     -   Informasi HARUS faktual berdasarkan kode dan konteks, jangan berhalusinasi.
+    -   **ATURAN UTAMA**: Fokus pada **mengklarifikasi fungsionalitas** (apa yang dilakukan kode). **HINDARI** detail implementasi atau teori dasar (simpan untuk bagian `notes` jika dibutuhkan). Boleh *menyebut* nama parameter, tapi **JANGAN** menjelaskannya (simpan untuk bagian 'parameters`).
     -   Secara faktual jelaskan:
         1.  **MENGAPA** (Purpose/Use Case): Apa tujuan dan kasus penggunaan utama fungsi ini?
         2.  **KAPAN** (When to Use): Kapan situasi ideal untuk menggunakan fungsi ini?
         3.  **DI MANA** (Workflow Fit): Bagaimana posisinya dalam alur kerja sistem yang lebih besar?
-        4.  **BAGAIMANA** (High-Level Approach): Apa pendekatan implementasi garis besarnya (tanpa terlalu teknis)?
--   **`parameters`**: (PENTING) Deteksi SEMUA parameter dari signatur. Untuk setiap parameter, sediakan 'name', 'type', dan 'description' (dalam Bahasa Indonesia). Deskripsi HARUS mendalam dan mencakup:
-    1.  **Signifikansi**: Mengapa parameter ini penting?
-    2.  **Batasan**: Apa rentang nilai yang valid atau *constraints*?
-    3.  **Interdependensi**: Apakah nilainya bergantung atau memengaruhi parameter lain?
--   **`returns`**: (PENTING) Jelaskan nilai yang dikembalikan. Sediakan 'type' dan 'description' (dalam Bahasa Indonesia). Deskripsi HARUS menjelaskan:
-    1.  **Representasi**: Apa arti atau yang direpresentasikan oleh nilai ini? (misal: "True jika validasi berhasil, False jika gagal.")
-    2.  **Kemungkinan Nilai**: Apa kemungkinan nilai atau rentang spesifik yang dikembalikan?
-    3.  **Kondisi**: Apakah ada kondisi yang memengaruhi nilai kembalian?
-    4.  (Jika tidak mengembalikan apa-apa/void, biarkan `null`.)
--   **`yields` / `receives`**: (Jika ini generator) Gunakan `yields` sebagai ganti `returns`. Isi `receives` jika metode `.send()` digunakan.
--   **`raises`**: (Opsional) Deteksi `raise` statement eksplisit. Untuk setiap error, daftarkan 'error' (tipe, misal: 'ValueError') dan 'description' yang menjelaskan:
-    1.  **Kondisi Spesifik**: Kondisi apa yang memicu *exception* ini?
-    2.  **Pencegahan/Penanganan**: Bagaimana pengguna dapat mencegah atau menangani *exception* ini?
--   **`examples`**: (Sangat dianjurkan dan penting) Tulis contoh kode singkat dalam format doctest (dimulai dengan `>>> `).
-    -   **PERINGATAN UTAMA**: Berikan contoh jika kode dan konteks memberikan skenario penggunaan yang praktis dan jelas. **Lebih baik mengembalikan `null` untuk field ini daripada mengarang (berhalusinasi) skenario yang tidak faktual.**
-    -   **PERINTAH KERINGKASAN**: Contoh HARUS RINGKAS dan JELAS. Hanya sertakan informasi esensial untuk mendemonstrasikan penggunaan. Hindari skenario yang panjang atau detail yang berlebihan.
-    -   Jika example dibuat, fokus pada:
-        1.  **Skenario Praktis**: Tunjukkan penggunaan di dunia nyata secara ringkas.
-        2.  **Kombinasi Parameter**: Tunjukkan pemanggilan dengan kombinasi parameter yang umum.
-        3.  **Penanganan Error**: (Jika relevan dan jelas) Tunjukkan secara singkat cara menangani *exception* atau pemanggilan yang menimbulkannya.
--   **`keywords`**: Berikan 3-5 kata kunci teknis yang relevan.
--   **Bagian Lain (Opsional)**: Isi `see_also`, `notes` HANYA jika konteks atau kode memberikan informasi yang sangat jelas untuk itu.
+        
+-   **`parameters`**: (PENTING) Deteksi SEMUA parameter dari signatur. 
+    -  Untuk setiap parameter, sediakan 'name', 'type', dan 'description'. Deskripsi HARUS mendalam dan mencakup:
+    -   **ATURAN WAJIB (PENTING):**
+        1.  **`name`**: (WAJIB IDENTIK) Salin NAMA parameter **secara identik** dari signatur kode. HARUS *case-sensitive* dan menyertakan awalan `*` atau `**` jika ada (misal: `*args`, `**kwargs`).
+        2.  **`type`**: (WAJIB IDENTIK) Salin TIPE DATA (type hint) **secara identik** dari signatur kode. HARUS *case-sensitive* dan menyertakan semua karakter (misal: `Optional[str]`, `Dict[str, Any]`).
+        3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) di signatur kode, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+    -   **ATURAN KONTEN:**
+        1.  **`description`**: Deskripsi HARUS mendalam dan mencakup:
+            -  **Signifikansi**: Mengapa parameter ini penting?
+            -  **Batasan**: Apa rentang nilai yang valid atau *constraints*?
+            -  **Interdependensi**: Apakah nilainya bergantung atau memengaruhi parameter lain? 
+            
+-   **`returns`**: (PENTING) Analisis nilai yang dikembalikan oleh fungsi.
+    -   **ATURAN UTAMA (PENTING):**
+        1.  **`type` (JIKA ADA HINT)**: (WAJIB IDENTIK) Salin TIPE DATA (return hint) **secara identik** dari signatur kode. HARUS *case-sensitive* (misal: `Optional[str]`, `Dict[str, Any]`).
+        2.  **`type` (JIKA KOSONG)**: JIKA **TIDAK ADA** TIPE DATA (return hint) TAPI fungsi/metode tersebut memiliki `return` statement (misal: `return data`), Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+        3.  **`returns: null` (JIKA VOID)**: JIKA fungsi **TIDAK MENGEMBALIKAN NILAI EKSPLISIT** (misal: `return` saja, atau tidak ada `return`), Anda **WAJIB** menyetel *kunci* `returns` di JSON utama menjadi `null`.
+    -   **ATURAN KONTEN (JIKA `returns` BUKAN `null`):**
+        1.  **`description`**: Deskripsi HARUS mendalam dan menjelaskan:
+            -  **Representasi**: Apa arti atau yang direpresentasikan oleh nilai ini?
+            -  **Kemungkinan Nilai**: Apa kemungkinan nilai atau rentang spesifik yang dikembalikan?
+            -  **Kondisi**: Apakah ada kondisi yang memengaruhi nilai kembalian?
+    
+-   **`yields`**: (KHUSUS GENERATOR) JIKA fungsi ini adalah generator (MENGGUNAKAN `yield`), analisis nilai yang di-*yield*.
+    -   **ATURAN UTAMA (PENTING):**
+        1.  **`type` (JIKA ADA HINT)**: (WAJIB IDENTIK) Salin TIPE DATA yang di-*yield* **secara identik**. (misal: dari `Generator[int, ...]` tipenya adalah `int`).
+        2.  **`type` (JIKA KOSONG)**: JIKA **TIDAK ADA** TIPE DATA (return hint) TAPI fungsi memiliki `yield` statement, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+    -   **ATURAN KONTEN:**
+        1.  **`description`**: Deskripsi HARUS mendalam dan menjelaskan **Representasi**, **Kemungkinan Nilai**, dan **Kondisi** dari nilai yang di-*yield*.
+
+-   **`receives`**: (OPTIONAL PADA GENERATOR) JIKA fungsi ini adalah generator DAN dirancang untuk menerima nilai melalui `.send()`, deteksi parameter yang diterima.
+    -   **ATURAN WAJIB (PENTING):**
+        1.  **`name`**: (WAJIB IDENTIK) Salin NAMA secara identik dan wajib case-sensitive sesuai yang terdapat pada code.
+        2.  **`type`**: (WAJIB IDENTIK) Salin TIPE DATA secara identik dan wajib case-sensitive sesuai yang terdapat pada code.
+        3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) di signatur kode, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+    -   **ATURAN KONTEN:**
+        1.  **`description`**: Deskripsi HARUS mendalam dan mencakup **Signifikansi**, **Batasan**, dan **Interdependensi**.
+
+-   **`raises` dan `warns` (Opsional):**
+    -   **`raises`**: (WAJIB JIKA ADA) Deteksi `raise` statement eksplisit.
+        -   **`error`**: (WAJIB IDENTIK) Salin tipe *error* **secara identik** dari kode. HARUS *case-sensitive* (misal: 'ValueError', 'TypeError').
+        -   **`description`**: Jelaskan **kondisi dan keadaan** yang memicu *error* ini.
+    -   **`warns`**: (WAJIB JIKA ADA) Deteksi pemanggilan `warnings.warn()`.
+        -   **`warning`**: (WAJIB IDENTIK) Salin tipe *warning* **secara identik** dari kode. HARUS *case-sensitive* (misal: 'RuntimeWarning', 'DeprecationWarning').
+        -   **`description`**: Jelaskan **kondisi dan keadaan** yang memicu *warning* ini.        
+
+-   **`examples`**: (Sangat dianjurkan) Tulis contoh kode singkat dalam format **doctest** (dimulai dengan `>>> `).
+    -   **ATURAN KETAT**: Fokus untuk **mengilustrasikan penggunaan**, BUKAN untuk *testing*. Contoh HARUS RINGKAS, JELAS, dan FAKTUAL.
+    -   **ANTI-HALUSINASI**: **Lebih baik mengembalikan `null`** daripada mengarang (berhalusinasi) skenario yang tidak faktual atau tidak jelas.
+    -   **FOKUS KONTEN**: Tunjukkan **Skenario Praktis**, **Kombinasi Parameter** umum, atau (jika relevan) pemanggilan yang memicu **Exception**.
+    -   **ATURAN FORMAT (WAJIB):**
+        1.  Jika ada **beberapa** contoh, pisahkan dengan **baris kosong**.
+        2.  Sangat dianjurkan untuk menyertakan **komentar ringkas dan to-the-point** (diawali `#`) di atas setiap contoh untuk menjelaskannya.
+
+-   **Bagian Lain (`notes`, `see_also`, `warnings_section` - OPSIONAL):**
+    -   **PERINGATAN KETAT:** HANYA isi *field-field* ini jika informasi yang relevan 100% faktual, jelas dari konteks/kode, DAN penting/krusial untuk diketahui pembaca.
+    -   **Jika terdapat sedikit keraguan mengenai akurasi atau kepentingannya, JANGAN DITULIS** (biarkan *field* tersebut `null`).
 """
 
          self.rules_for_class_template: str = """**TASK: Generate Documentation Content for a Class**
@@ -93,32 +131,52 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
     -   Tekankan pada **tujuan atau peran utamanya** dalam sistem.
     -   **HINDARI** pengulangan nama kelas.
     -   (Contoh: "Mengelola konfigurasi database dan koneksi pool.")
--   **`extended_summary`**: (WAJIB) Tulis paragraf deskriptif yang komprehensIF.
+    
+-   **`extended_summary`**: (WAJIB) Tulis paragraf deskriptif yang komprehensif.
     -   Paragraf ini HARUS mengalir secara naratif (bukan poin-poin).
     -   Informasi HARUS FAKTUAL berdasarkan kode dan konteks, jangan berhalusinasi.
+    -   **ATURAN UTAMA**: Fokus pada **mengklarifikasi fungsionalitas** (apa yang dilakukan kode). **HINDARI** detail implementasi atau teori dasar (simpan untuk bagian `notes` jika dibutuhkan). Boleh *menyebut* nama parameter, tapi **JANGAN** menjelaskannya (simpan untuk bagian 'parameters`).
     -   Secara faktual jelaskan:
         1.  **DI MANA** (Architecture): Bagaimana posisinya dalam arsitektur sistem yang lebih besar? (misal: "Bertindak sebagai...")
         2.  **MENGAPA** (Motivation): Apa motivasi dan tujuan utama di balik pembuatan kelas ini?
         3.  **KAPAN** (Scenarios): Kapan skenario atau kondisi ideal untuk menggunakan (membuat instance) kelas ini?
-        4.  **BAGAIMANA** (High-Level Overview): Apa pendekatan implementasi garis besarnya? (misal: "Mengenkapsulasi logika untuk...")
--   **`parameters`**: (PENTING) Deteksi parameter dari constructor (`__init__`). Untuk setiap parameter, sediakan 'name', 'type', dan 'description' (dalam Bahasa Indonesia). Deskripsi HARUS mendalam dan mencakup:
-    1.  **Signifikansi**: Mengapa parameter ini penting untuk inisialisasi?
-    2.  **Batasan**: Apa rentang nilai yang valid atau *constraints*?
-    3.  **Relasi**: Apakah nilainya bergantung atau memengaruhi parameter lain?
--   **`attributes`**: (PENTING) Deteksi atribut publik yang relevan. Untuk setiap atribut, sediakan 'name', 'type', dan 'description' (dalam Bahasa Indonesia). Deskripsi HARUS menjelaskan:
-    1.  **Tujuan/Signifikansi**: Apa tujuan atribut ini?
-    2.  **Tipe/Nilai**: Apa tipe datanya dan apa nilai yang valid?
-    3.  **Dependensi**: Apakah nilainya bergantung pada atribut atau parameter lain? 
--   **`methods`**: (Opsional) Daftar beberapa metode publik yang paling PENTING (misal: 'fit', 'predict'). Jangan daftarkan *semua* metode.
--   **`examples`**: (Sangat dianjurkan dan penting) Tulis contoh singkat cara menginisialisasi dan menggunakan objek kelas ini (diawali `>>> `).
-    -   **PERINGATAN UTAMA**: Berikan contoh jika kode dan konteks memberikan skenario penggunaan yang praktis dan jelas. **Lebih baik mengembalikan `null` untuk field ini daripada mengarang (berhalusinasi) skenario yang tidak faktual**
-    -   **PERINTAH KERINGKASAN**: Contoh HARUS RINGKAS dan JELAS. Hanya sertakan informasi esensial untuk mendemonstrasikan penggunaan. Hindari skenario yang panjang atau detail yang berlebihan.
-    -   Jika contoh dibuat, fokus pada:
-        1.  **Alur Kerja Khas**: Tunjukkan skenario penggunaan praktis di dunia nyata secara ringkas.
-        2.  **Inisialisasi**: HARUS menyertakan cara membuat instance objek kelas.
-        3.  **Pemanggilan Metode**: Tunjukkan pemanggilan 1-2 metode umum setelah inisialisasi untuk mendemonstrasikan alur kerja yang tipikal.
--   **`keywords`**: Berikan 3-5 kata kunci teknis yang relevan.
--   **Bagian Lain (Opsional)**: Isi `see_also`, `notes` HANYA jika konteks atau kode memberikan informasi yang sangat jelas untuk itu.
+        
+-   **`parameters`**: (PENTING) Deteksi parameter dari constructor (`__init__`). 
+    -   Untuk setiap parameter, Anda HARUS menyediakan 'name', 'type', dan 'description'.
+    -   **ATURAN WAJIB (PENTING):**
+        1.  **`name`**: (WAJIB IDENTIK) Salin NAMA parameter **secara identik** dari signatur `__init__`. HARUS *case-sensitive* dan menyertakan awalan `*` atau `**` jika ada. (Abaikan `self`).
+        2.  **`type`**: (WAJIB IDENTIK) Salin TIPE DATA (type hint) **secara identik** dari signatur `__init__`. HARUS *case-sensitive* (misal: `Optional[str]`).
+        3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) di signatur `__init__`, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+    -   **ATURAN KONTEN:**
+        1.  **`description`**: (dalam Bahasa Indonesia) Deskripsi HARUS mendalam dan mencakup:
+            -  **Signifikansi**: Mengapa parameter ini penting untuk inisialisasi? Apa pengaruhnya terhadap *instance*?
+            -  **Batasan**: Apa rentang nilai yang valid atau *constraints* ?
+            -  **Relasi**: Apakah nilainya bergantung atau memengaruhi parameter lain saat inisialisasi?
+            
+-   **`attributes`**: (PENTING) Deteksi **atribut publik non-metode (non-method attributes)** yang relevan.
+    -   Ini biasanya adalah atribut yang didefinisikan di *class body* atau sebagai `self.nama_atribut` di dalam `__init__`.
+    -   Untuk setiap atribut, Anda HARUS menyediakan 'name', 'type', dan 'description'.
+    -   **ATURAN WAJIB (PENTING):**
+        1.  **`name`**: (WAJIB IDENTIK) Tulis NAMA atribut **tanpa** awalan `self.` (misal: deteksi `self.my_attr`, tulis `my_attr`). HARUS *case-sensitive*.
+        2.  **`type`**: (WAJIB IDENTIK) Salin TIPE DATA (type hint) **secara identik** dari kode (misal: dari `self.my_attr: int`). HARUS *case-sensitive*.
+        3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) yang terdeteksi untuk atribut, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+    -   **ATURAN KONTEN:**
+        1.  **`description`**: (dalam Bahasa Indonesia) Deskripsi HARUS mendalam dan menjelaskan:
+            -  **Tujuan/Signifikansi**: Apa tujuan atribut ini dan mengapa ia disimpan/diekspos?
+            -  **Batasan Nilai**: (Opsional) Jelaskan batasan nilai yang valid jika *type hint* tidak cukup (misal: "Harus integer positif").
+            -  **Dependensi**: Apakah nilainya bergantung pada atribut atau `parameter` constructor lain?
+    
+-   **`examples`**: (Sangat dianjurkan) Tulis contoh kode singkat dalam format **doctest** (dimulai dengan `>>> `).
+    -   **ATURAN KETAT**: Fokus untuk **mengilustrasikan penggunaan**, BUKAN untuk *testing*. Contoh HARUS RINGKAS, JELAS, dan FAKTUAL.
+    -   **ANTI-HALUSINASI**: **Lebih baik mengembalikan `null`** daripada mengarang (berhalusinasi) skenario yang tidak faktual atau tidak jelas.
+    -   **FOKUS KONTEN**: Tunjukkan **Skenario Praktis**, **Kombinasi Parameter** umum, atau (jika relevan) pemanggilan yang memicu **Exception**.
+    -   **ATURAN FORMAT (WAJIB):**
+        1.  Jika ada **beberapa** contoh, pisahkan dengan **baris kosong**.
+        2.  Sangat dianjurkan untuk menyertakan **komentar ringkas dan to-the-point** (diawali `#`) di atas setiap contoh untuk menjelaskannya.
+
+-   **Bagian Lain (`notes`, `see_also`, `warnings_section` - OPSIONAL):**
+    -   **PERINGATAN KETAT:** HANYA isi *field-field* ini jika informasi yang relevan 100% faktual, jelas dari konteks/kode, DAN penting/krusial untuk diketahui pembaca.
+    -   **Jika terdapat sedikit keraguan mengenai akurasi atau kepentingannya, JANGAN DITULIS** (biarkan *field* tersebut `null`).
 """
          
          self.json_parser = PydanticOutputParser(pydantic_object=NumpyDocstring)
@@ -203,8 +261,14 @@ Code Component:
          
          def print_prompt_and_pass(prompt_value):
             """Mengambil PromptValue, mencetaknya, dan meneruskannya."""
-            with open(DUMMY_TESTING_DIRECTORY / f"DocPrompt_{len(self.memory)}_{datetime.now().strftime("%H_%M_%S")}.txt", "w", encoding="utf-8") as f:
-               json.dump(prompt_value.to_string(), f, indent=4, ensure_ascii=False)
+            folder_path = DUMMY_TESTING_DIRECTORY / f"component_{self.current_component_id}" if self.current_component_id else DUMMY_TESTING_DIRECTORY
+            
+            save_docgen_component_process(
+                file_path= folder_path / f"Writer_Prompt_{len(self.memory)}_{datetime.now().strftime("%H_%M_%S")}.txt",
+                content = prompt_value.to_string(),
+                type = "json"
+            )
+            
             return prompt_value # PENTING: Meneruskan PromptValue ke LLM
          
          # 4. Bangun chain (Prompt -> LLM -> Parser)
@@ -212,96 +276,11 @@ Code Component:
          
          return chain
          
-      
-      # Ganti implementasi get_formatted_documentation Anda:
-      def get_formatted_documentation(self, doc: NumpyDocstring) -> str:
-         """
-         Merender objek NumpyDocstring yang terstruktur menjadi string
-         docstring berformat NumPyDoc yang valid.
-         """
-         
-         # Helper untuk memformat satu parameter
-         def format_param(p: DocstringParameter) -> str:
-            # Mengurus tipe dan default
-            type_str = f" : {p.type}" if p.type else ""
-            default_str = f", default={p.default}" if p.default is not None else ""
-            return f"{p.name}{type_str}{default_str}\n    {p.description}"
-
-         # Helper untuk memformat nilai kembali
-         def format_return(r: DocstringReturn) -> str:
-            name_str = f"{r.name} : " if r.name else ""
-            return f"{name_str}{r.type}\n    {r.description}"
-
-         # Helper untuk memformat bagian (section)
-         def build_section(title: str, items: Optional[List[Any]], formatter_func) -> List[str]:
-            if not items:
-               return []
-            lines = [f"\n{title}", "-" * len(title)]
-            lines.extend([formatter_func(item) for item in items])
-            return lines
-
-         # Helper untuk bagian teks bebas
-         def build_text_section(title: str, content: Optional[str]) -> List[str]:
-            if not content:
-               return []
-            return [f"\n{title}", "-" * len(title), content]
-         
-         # --- Mulai Membangun Docstring ---
-         docstring_lines = []
-         
-         # 1. Short Summary
-         docstring_lines.append(doc.short_summary) 
-
-         # 3. Extended Summary
-         if doc.extended_summary:
-            docstring_lines.append(f"\n{doc.extended_summary}") 
-
-         # 4. Parameters
-         docstring_lines.extend(build_section("Parameters", doc.parameters, format_param)) 
-
-         # Bagian Khusus Kelas
-         docstring_lines.extend(build_section("Attributes", doc.attributes, format_param)) 
-         if doc.methods:
-            method_lines = [f"{m['name']}\n    {m['description']}" for m in doc.methods]
-            docstring_lines.extend(["\nMethods", "-------", *method_lines]) 
-
-         # 5. Returns
-         docstring_lines.extend(build_section("Returns", doc.returns, format_return)) 
-         
-         # 6. Yields
-         docstring_lines.extend(build_section("Yields", doc.yields, format_return)) 
-
-         # 7. Receives
-         docstring_lines.extend(build_section("Receives", doc.receives, format_param)) 
-
-         # 9. Raises
-         if doc.raises:
-            raise_lines = [f"{r.error}\n    {r.description}" for r in doc.raises]
-            docstring_lines.extend(["\nRaises", "------", *raise_lines]) 
-
-         # 12. See Also
-         if doc.see_also:
-            see_also_lines = [f"{s['name']} : {s['description']}" for s in doc.see_also]
-            docstring_lines.extend(["\nSee Also", "--------", *see_also_lines]) 
-
-         # 13. Notes
-         docstring_lines.extend(build_text_section("Notes", doc.notes)) 
-
-         # 15. Examples
-         docstring_lines.extend(build_text_section("Examples", doc.examples)) 
-
-         # (Saya melewatkan beberapa bagian opsional seperti Warns, Other Params untuk keringkasan,
-         # tetapi Anda dapat menambahkannya dengan pola yang sama)
-
-         # --- Gabungkan semuanya ---
-         # Ini adalah docstring_content yang SEKARANG DI-RENDER, bukan di-generate
-         final_docstring_content = "\n".join(docstring_lines)
-         
-         # Mengembalikan format akhir Anda (yang juga bisa Anda sesuaikan)
-         return final_docstring_content.strip()
 
       def process(self, state: AgentState) -> AgentState:
-
+         
+         # Untuk simpen process perlu component id
+         self.current_component_id = state["component"].id
          print("[Writer]: Run - Generating docstring ...")
 
          # Pastikan chain sudah di-setup
@@ -328,14 +307,13 @@ Code Component:
             # Input ke chain adalah dictionary state
             parsed_output = self.full_writer_chain.invoke(llm_input, config=config)
             
-            with open(DUMMY_TESTING_DIRECTORY / f"DocJSONResponse_{datetime.now().strftime("%H_%M_%S")}.json", "w", encoding="utf-8") as f:
-               json.dump(parsed_output.model_dump(), f, indent=4, ensure_ascii=False)
+            # with open(DUMMY_TESTING_DIRECTORY / f"DocJSONResponse_{datetime.now().strftime("%H_%M_%S")}.json", "w", encoding="utf-8") as f:
+            #    json.dump(parsed_output.model_dump(), f, indent=4, ensure_ascii=False)
             
             self.add_to_memory("assistant", parsed_output.model_dump_json())
 
             # Format output (Poin 4: Berhasil)
             state["documentation_json"] = parsed_output
-            state['docstring'] = self.get_formatted_documentation(parsed_output)
             
          except (OutputParserException, Exception) as e: 
             # Kegagalan Total (Setelah 2 upaya gagal)
@@ -355,9 +333,99 @@ Code Component:
             self.add_to_memory("assistant", error_msg)
             
             state['documentation_json'] = None
-            state['docstring'] = error_docstring
 
          return state
+
+
+
+# VERSION V1 FORMATING NUMPY OUTPUT
+# Ganti implementasi get_formatted_documentation Anda:
+      # def get_formatted_documentation(self, doc: NumpyDocstring) -> str:
+      #    """
+      #    Merender objek NumpyDocstring yang terstruktur menjadi string
+      #    docstring berformat NumPyDoc yang valid.
+      #    """
+         
+      #    # Helper untuk memformat satu parameter
+      #    def format_param(p: DocstringParameter) -> str:
+      #       # Mengurus tipe dan default
+      #       type_str = f" : {p.type}" if p.type else ""
+      #       default_str = f", default={p.default}" if p.default is not None else ""
+      #       return f"{p.name}{type_str}{default_str}\n    {p.description}"
+
+      #    # Helper untuk memformat nilai kembali
+      #    def format_return(r: DocstringReturn) -> str:
+      #       name_str = f"{r.name} : " if r.name else ""
+      #       return f"{name_str}{r.type}\n    {r.description}"
+
+      #    # Helper untuk memformat bagian (section)
+      #    def build_section(title: str, items: Optional[List[Any]], formatter_func) -> List[str]:
+      #       if not items:
+      #          return []
+      #       lines = [f"\n{title}", "-" * len(title)]
+      #       lines.extend([formatter_func(item) for item in items])
+      #       return lines
+
+      #    # Helper untuk bagian teks bebas
+      #    def build_text_section(title: str, content: Optional[str]) -> List[str]:
+      #       if not content:
+      #          return []
+      #       return [f"\n{title}", "-" * len(title), content]
+         
+      #    # --- Mulai Membangun Docstring ---
+      #    docstring_lines = []
+         
+      #    # 1. Short Summary
+      #    docstring_lines.append(doc.short_summary) 
+
+      #    # 3. Extended Summary
+      #    if doc.extended_summary:
+      #       docstring_lines.append(f"\n{doc.extended_summary}") 
+
+      #    # 4. Parameters
+      #    docstring_lines.extend(build_section("Parameters", doc.parameters, format_param)) 
+
+      #    # Bagian Khusus Kelas
+      #    docstring_lines.extend(build_section("Attributes", doc.attributes, format_param)) 
+      #    if doc.methods:
+      #       method_lines = [f"{m['name']}\n    {m['description']}" for m in doc.methods]
+      #       docstring_lines.extend(["\nMethods", "-------", *method_lines]) 
+
+      #    # 5. Returns
+      #    docstring_lines.extend(build_section("Returns", doc.returns, format_return)) 
+         
+      #    # 6. Yields
+      #    docstring_lines.extend(build_section("Yields", doc.yields, format_return)) 
+
+      #    # 7. Receives
+      #    docstring_lines.extend(build_section("Receives", doc.receives, format_param)) 
+
+      #    # 9. Raises
+      #    if doc.raises:
+      #       raise_lines = [f"{r.error}\n    {r.description}" for r in doc.raises]
+      #       docstring_lines.extend(["\nRaises", "------", *raise_lines]) 
+
+      #    # 12. See Also
+      #    if doc.see_also:
+      #       see_also_lines = [f"{s['name']} : {s['description']}" for s in doc.see_also]
+      #       docstring_lines.extend(["\nSee Also", "--------", *see_also_lines]) 
+
+      #    # 13. Notes
+      #    docstring_lines.extend(build_text_section("Notes", doc.notes)) 
+
+      #    # 15. Examples
+      #    docstring_lines.extend(build_text_section("Examples", doc.examples)) 
+
+      #    # (Saya melewatkan beberapa bagian opsional seperti Warns, Other Params untuk keringkasan,
+      #    # tetapi Anda dapat menambahkannya dengan pola yang sama)
+
+      #    # --- Gabungkan semuanya ---
+      #    # Ini adalah docstring_content yang SEKARANG DI-RENDER, bukan di-generate
+      #    final_docstring_content = "\n".join(docstring_lines)
+         
+      #    # Mengembalikan format akhir Anda (yang juga bisa Anda sesuaikan)
+      #    return final_docstring_content.strip()
+
 
 
 # V1 VERSION WRITER COMPONENT 

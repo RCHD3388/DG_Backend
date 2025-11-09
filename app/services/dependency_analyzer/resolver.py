@@ -24,12 +24,13 @@ class DependencyResolver(ABC):
     Abstract base class for dependency resolution strategies.
     Defines the contract for all concrete resolver implementations.
     """
-    def __init__(self, components: Dict[str, CodeComponent], modules: Set[str], repo_path: Path, task_id: str, root_module_name: str):
+    def __init__(self, components: Dict[str, CodeComponent], modules: Set[str], repo_path: Path, task_id: str, root_module_name: str, project_root_folder: Path):
         self.components = components
         self.modules = modules
         self.repo_path = repo_path
         self.task_id = task_id
         self.root_module_name = root_module_name
+        self.project_root_folder = project_root_folder
 
     @abstractmethod
     def resolve(self, relevant_files: List[Path]) -> None:
@@ -670,7 +671,7 @@ class PrimaryDependencyResolver(DependencyResolver):
                                         origin_informations = self.find_true_origin_v2(
                                             entry_file_path=component.file_path,
                                             component_name=name_index_search_key,
-                                            project_root=self.repo_path
+                                            project_root=self.project_root_folder
                                         )
                                         # Check hasil find origins apakah ada isinya
                                         if origin_informations and len(origin_informations) > 0:

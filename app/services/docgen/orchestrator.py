@@ -2,7 +2,7 @@
 
 import yaml
 import re
-from typing import Dict, Any
+from typing import Dict, Any, List
 import tiktoken
 import json
 
@@ -17,6 +17,7 @@ from app.services.docgen.agents.verifier import Verifier
 from app.services.docgen.tools.InternalCodeParser import InternalCodeParser
 from app.schemas.models.code_component_schema import CodeComponent
 from app.utils.CustomLogger import CustomLogger
+from app.utils.file_utils import save_docgen_component_process
 from app.services.docgen.agents.agent_output_schema import ReaderOutput
 
 logger = CustomLogger("Orchestrator")
@@ -37,21 +38,72 @@ class Orchestrator(OrchestratorBase):
         self.max_used_by_samples = flow_config.get('max_used_by_samples', 2)
         self.max_context_token = flow_config.get('max_context_token', 10000)
 
-        self.reader = Reader(config_path=config_path)
-        self.searcher = Searcher(config_path=config_path, 
-                                 internalCodeParser=internalCodeParser, 
-                                 max_used_by_samples=self.max_used_by_samples, 
-                                 max_context_token=self.max_context_token)
-        self.writer = Writer(config_path=config_path)
-        self.verifier = Verifier(config_path=config_path)
+        # setup Reader, Searcher, Writer, Verifier
+        agent_llm_configs = self.config.get('agent_llms', {})
+        # -- Ambil config default jika pool agen kosong
+        default_llm_config = self.config.get("llm")
 
+        self.writer_pool: List[Writer] = [
+            Writer(llm_config=cfg) 
+            for cfg in agent_llm_configs.get('writer', [default_llm_config])
+        ]
+        self.reader_pool: List[Reader] = [
+            Reader(llm_config=cfg) 
+            for cfg in agent_llm_configs.get('reader', [default_llm_config])
+        ]
+        self.searcher_pool: List[Searcher] = [
+            Searcher(llm_config=cfg,
+                    internalCodeParser=internalCodeParser, 
+                    max_used_by_samples=self.max_used_by_samples, 
+                    max_context_token=self.max_context_token)
+            for cfg in agent_llm_configs.get('searcher', [default_llm_config])
+        ]
+        self.verifier_pool: List[Verifier] = [
+            Verifier(llm_config=cfg) 
+            for cfg in agent_llm_configs.get('verifier', [default_llm_config])
+        ]
+
+        self._pool_index_counter = 0
+        
+        # self.reader = Reader(config_path=config_path)
+        # self.searcher = Searcher(config_path=config_path, 
+        #                          internalCodeParser=internalCodeParser, 
+        #                          max_used_by_samples=self.max_used_by_samples, 
+        #                          max_context_token=self.max_context_token)
+        # self.writer = Writer(config_path=config_path)
+        # self.verifier = Verifier(config_path=config_path)
+
+    def setup_current_agents(self):
+        
+        num_sets = len(self.writer_pool) 
+        if num_sets == 0:
+            raise Exception("Tidak ada agen Writer yang diinisialisasi di pool.")
+            
+        # mendapatkan indeks saat ini
+        index = self._pool_index_counter % num_sets
+        
+        print(f"[Orchestrator]: Menggunakan set agen [Indeks {index}] untuk komponen ini.")
+        
+        self.reader = self.reader_pool[index]
+        self.searcher = self.searcher_pool[index]
+        self.writer = self.writer_pool[index]
+        self.verifier = self.verifier_pool[index]
+    
     def process(self, component: CodeComponent) -> Dict[str, Any]:
         """Menjalankan seluruh alur kerja dan mengembalikan hasil + statistik."""
+        
+        # Setup and Clear Memory
+        self.setup_current_agents()
+        self._pool_index_counter += 1
         
         self.reader.clear_memory()
         self.searcher.clear_memory()
         self.writer.clear_memory()
         self.verifier.clear_memory()
+        
+        # SETUP PROCESS FOLDER untuk simpan hasil 
+        self.current_component_raw_results_path = DUMMY_TESTING_DIRECTORY / f"component_{component.id}"
+        self.current_component_raw_results_path.mkdir(parents=True, exist_ok=True)
         
         # Setiap proses mendapatkan callback handler baru
         usage_callback = TokenUsageCallback()
@@ -68,7 +120,6 @@ class Orchestrator(OrchestratorBase):
             "component": component,
             "focal_component": truncated_source_code,
             "documentation_json": None,
-            "docstring": "",
             "context": "",
             "reader_response": None,
             "reader_search_attempts": 0,
@@ -80,6 +131,12 @@ class Orchestrator(OrchestratorBase):
         # PRE. Search initial context
         self.searcher.find_initial_context(state)
         state = self.searcher.update_context(state)
+        # SAVE PROCESS SEARCHER INITIAL
+        save_docgen_component_process(
+                file_path = self.current_component_raw_results_path / f"Searcher_Initial.json",
+                content = self.searcher.gathered_data,
+                type = "json"
+            )
         # -- set to reader memory
         self.reader.add_to_memory("user", state["context"])
         
@@ -90,8 +147,12 @@ class Orchestrator(OrchestratorBase):
             # 1. READER PROCESS.
             state = self.reader.process(state)
             
-            with open(DUMMY_TESTING_DIRECTORY / f"ReRes{state["reader_search_attempts"]}_{state["component"].id}.json", "w", encoding="utf-8") as f:
-                json.dump(state["reader_response"].model_dump(), f, indent=4, ensure_ascii=False)   
+            # SAVE PROCESS READER
+            save_docgen_component_process(
+                file_path = self.current_component_raw_results_path / f"Reader_{state["reader_search_attempts"]}.json",
+                content = state["reader_response"].model_dump(),
+                type = "json"
+                )
             
             # Periksa apakah Reader membutuhkan lebih banyak info
             reader_output = state.get("reader_response", ReaderOutput(info_need=False))
@@ -100,6 +161,14 @@ class Orchestrator(OrchestratorBase):
                 
                 # 2. SEARCHER PROCESS
                 self.searcher.process(state)
+                
+                # SAVE PROCESS SEARCHER
+                save_docgen_component_process(
+                        file_path = self.current_component_raw_results_path / f"Searcher_{state["reader_search_attempts"]}.json",
+                        content = self.searcher.gathered_data,
+                        type = "json"
+                    )
+                
                 state = self.searcher.update_context(state)
                 self.reader.refresh_memory([
                     {"role": "system", "content": self.reader.system_prompt},
@@ -120,16 +189,22 @@ class Orchestrator(OrchestratorBase):
                 
                 # 3. WRITER PROCESS
                 state = self.writer.process(state)
-                with open(DUMMY_TESTING_DIRECTORY / f"DocRWR_{state["component"].id}.txt", "w", encoding="utf-8") as f:
-                    json.dump(state["docstring"], f, indent=4, ensure_ascii=False)
-                
+                # SAVE PROCESS WRITER
+                save_docgen_component_process(
+                        file_path = self.current_component_raw_results_path / f"Writer_{state['verifier_rejection_count']}.json",
+                        content = state["documentation_json"].model_dump(),
+                        type = "json"
+                    )
                 
                 # 4. VERIFIER PROCESS 
                 if state["verifier_rejection_count"] < self.max_verifier_rejections:
                     state = self.verifier.process(state)
-                    with open(DUMMY_TESTING_DIRECTORY / f"VerifierState_{state["component"].id}_{state['verifier_rejection_count']}.txt", "w", encoding="utf-8") as f:
-                        json.dump(state["verification_result"], f, indent=4, ensure_ascii=False)
-
+                    # SAVE PROCESS VERIFIER
+                    save_docgen_component_process(
+                            file_path = self.current_component_raw_results_path / f"Verifier_{state["verifier_rejection_count"]}.txt",
+                            content = state["verification_result"],
+                            type = "json"
+                        )
             
                 # Gunakan .get() secara aman untuk menghindari KeyErrors jika 'formatted' tidak ada (misal: exception)
                 verification_output = state.get("verification_result", {}).get("formatted", {})
@@ -184,6 +259,7 @@ class Orchestrator(OrchestratorBase):
     
     def return_documentation_result(self, state: AgentState, usage_callback: TokenUsageCallback) -> Dict[str, Any]:
         """Mengembalikan hasil dokumentasi akhir dan statistik penggunaan token."""
+        print(usage_callback.get_stats())
         return {
             "final_state": state,
             "usage_stats": usage_callback.get_stats()

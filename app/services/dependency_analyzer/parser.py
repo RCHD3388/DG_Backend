@@ -18,8 +18,9 @@ from app.utils.CustomLogger import CustomLogger
 logger = CustomLogger("DepParser")
 
 class DependencyParser:
-    def __init__(self, repo_path: Path, task_id: str, root_module_name: str, resolver_strategy: ResolverStrategy = ResolverStrategy.FIRST):
+    def __init__(self, repo_path: Path, project_root_folder: Path, task_id: str, root_module_name: str, resolver_strategy: ResolverStrategy = ResolverStrategy.FIRST):
         self.repo_path = repo_path
+        self.project_root_folder = project_root_folder
         self.relevant_files: List[Path] = []
         self.components: Dict[str, CodeComponent] = {}
         self.class_components: Dict[str, CodeComponent] = {}
@@ -32,7 +33,7 @@ class DependencyParser:
 
     def _get_resolver(self, strategy: ResolverStrategy) -> DependencyResolver:
         """Factory method to select the dependency resolution strategy."""
-        resolver_args = (self.components, self.modules, self.repo_path, self.task_id, self.root_module_name)
+        resolver_args = (self.components, self.modules, self.repo_path, self.task_id, self.root_module_name, self.project_root_folder)
         if strategy == ResolverStrategy.FIRST:
             return PrimaryDependencyResolver(*resolver_args)
         elif strategy == ResolverStrategy.SECOND:
@@ -408,6 +409,7 @@ class DependencyParser:
                     if dot_path in self.components:
                         # Simpan ke component parent Set
                         component.component_parents.add(dot_path)
+                        component.depends_on.add(dot_path)
             
     # --- 2B ADD PARENT CLASS DEPENDENCIES END
 

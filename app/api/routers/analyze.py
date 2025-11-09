@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from app.core.websocket_manager import websocket_manager
 from app.schemas.response.analyze_schema import AnalysisStartSuccessData, AnalysisRequestBody
 from app.schemas.response_schema import StandardResponse
-from app.core.config import UPLOAD_DIRECTORY, DEPENDENCY_GRAPHS_DIR, COLLECTED_COMPONENTS_DIR
+from app.core.config import UPLOAD_DIRECTORY, DEPENDENCY_GRAPHS_DIR, COLLECTED_COMPONENTS_DIR, UPLOAD_CONFIGS_DIRECTORY
 from app.services.doc_generator import generate_documentation_for_project
 from app.core.config import settings
 from app.core.redis_client import get_redis_client
@@ -62,11 +62,16 @@ async def analyze_repository(
     print(f"config_filename: {body.config_filename}")
     print(f"process_name: {body.process_name}")
     
-    
+    # Check if file exists
     repo_file_path = UPLOAD_DIRECTORY / file_name
-
     if not repo_file_path.exists() or not repo_file_path.is_file():
         raise HTTPException(status_code=404, detail=f"Repository file '{file_name}' not found.")
+    
+    # Check config file exists
+    config_file_path = UPLOAD_CONFIGS_DIRECTORY / body.config_filename
+    if not config_file_path.exists() or not config_file_path.is_file():
+        raise HTTPException(status_code=404, detail=f"Config file '{body.config_filename}' not found.")
+    print(f"Config Available: {config_file_path}")
 
     # 1. Buat instance Task menggunakan blueprint kita
     new_task = Task(source_file=file_name)
@@ -85,6 +90,8 @@ async def analyze_repository(
         generate_documentation_for_project, 
         source_file_path=repo_file_path,
         task_id=new_task.task_id,
+        config_file_path=config_file_path,
+        root_folder=body.root_folder,
         analyze_name=body.process_name if body.process_name else None
     )
 

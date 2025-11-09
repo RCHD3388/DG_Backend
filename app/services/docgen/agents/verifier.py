@@ -143,9 +143,9 @@ class Verifier(BaseAgent):
     """
     Agen Verifier yang mengevaluasi kualitas docstring yang dihasilkan.
     """
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, llm_config: Dict[str, Any]):
         """Inisialisasi Verifier dengan prompt sistemnya."""
-        super().__init__("verifier", config_path=config_path)
+        super().__init__("verifier", llm_config=llm_config)
         
         # 3.1. Inisialisasi Verifikator Statis (Gratis)
         self.static_verifier_feedback_keyword = "[Static]"
@@ -174,13 +174,13 @@ KODE ASLI:
 {kode_komponen}
 ---
 
-DOKUMENTASI YANG DIHASILKAN (dari Writer):
+DOKUMENTASI YANG DIHASILKAN (Objek JSON dari Writer):
 ---
 {docstring_output} 
 ---
 
 --- TUGAS 1: CEKLIS EVALUASI ---
-PERHATIAN: Anda HARUS mengevaluasi HANYA bagian-bagian yang tercantum dalam ceklis di bawah ini. JANGAN mengevaluasi atau memberi kritik pada bagian lain (seperti 'keywords', 'see_also', 'methods', dll.) yang tidak tercantum secara eksplisit.
+PERHATIAN: Anda HARUS mengevaluasi HANYA bagian-bagian yang tercantum dalam ceklis di bawah ini. JANGAN mengevaluasi atau memberi kritik pada bagian lain (seperti 'notes', 'see_also', dll.) yang tidak tercantum secara eksplisit.
 
 Evaluasi DOKUMENTASI berdasarkan KODE dan KONTEKS. Berikan kritik Anda untuk setiap poin berikut:
 {dynamic_checklist}
@@ -206,16 +206,17 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
 2.  **extended_summary**: Apakah deskripsi ini faktual berdasarkan kode dan konteks? Apakah menjelaskan 'mengapa' dan 'bagaimana' dengan benar?
 3.  **parameters**: (PENTING) Evaluasi deskripsi parameter: Apakah sudah mencakup **Signifikansi**, **Batasan** (constraints), dan **Interdependensi**? Apakah deskripsinya cocok dengan PENGGUNAANNYA di kode?
 4.  **returns**: (PENTING) Evaluasi deskripsi nilai kembali: Apakah sudah mencakup **Representasi** (artinya), **Kemungkinan Nilai**, dan **Kondisi**?
-5.  **yields / receives**: (Jika ini generator) Apakah `yields` dan `receives` didokumentasikan dengan benar (menggantikan/melengkapi `returns`)?
-6.  **raises**: (PENTING) Evaluasi deskripsi error: Apakah sudah mencakup **Kondisi Spesifik** dan saran **Pencegahan/Penanganan**?
-7.  **examples**: (SANGAT PENTING) Apakah contoh kode ini *halusinasi*? Apakah tipe data di contoh cocok dengan signatur fungsi di kode?
+5.  **yields**: (Jika ini generator) Apakah `yields` didokumentasikan dengan benar (menggantikan/melengkapi `returns`)?
+6.  **raises**: (PENTING) Evaluasi deskripsi error: Apakah sudah mencakup penjelasan **Kondisi Spesifik** yang baik?
+6.  **warns**: (PENTING) Evaluasi deskripsi warning: Apakah sudah mencakup penjelasan **Kondisi Spesifik** yang baik?
+7.  **examples**: (PENTING) Apakah contoh kode ini *halusinasi*? Apakah tipe data di contoh cocok dengan signatur fungsi di kode?
 """
         self._verifier_checklist_class: str = """
 1.  **short_summary**: Apakah summary ini secara akurat (berdasarkan kode dan konteks) mendeskripsikan FUNGSI UTAMA kode?
 2.  **extended_summary**: Apakah deskripsi ini faktual berdasarkan kode dan konteks? Apakah menjelaskan 'mengapa' dan 'bagaimana' dengan benar?
 3.  **parameters** (dari `__init__`): (PENTING) Evaluasi deskripsi parameter constructor: Apakah sudah mencakup **Signifikansi** (pengaruhnya pada instance), **Batasan** (nilai valid), dan **Relasi** antar parameter?
 4.  **attributes**: (PENTING) Evaluasi deskripsi atribut: Apakah sudah mencakup **Tujuan/Signifikansi**, **Tipe/Nilai** yang valid, dan **Dependensi** antar atribut?
-5.  **examples**: (SANGAT PENTING) Apakah contoh kode ini *halusinasi*? Apakah inisialisasi dan pemanggilan metodenya logis berdasarkan kode?
+5.  **examples**: (PENTING) Apakah contoh kode ini *halusinasi*? Apakah inisialisasi dan pemanggilan metodenya logis berdasarkan kode?
 """
 
         # 3.3. Inisialisasi Chain LLM (LCEL)
@@ -280,7 +281,7 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
         # --- Aturan 2.1: Kasus Error LLM (Tidak ada 'raw' & tidak ada 'static') ---
         # Ini adalah kasus di mana LLM Verifier gagal (try-except)
         # DAN Static Verifier juga lolos.
-        if not raw_result and not static_findings:
+        if not raw_result and not static_findings and not llm_suggestion_feedback:
             # --- PERBAIKAN DI SINI ---
             # Skenario ini HANYA terjadi jika Verifier LLM gagal (try-except).
             # Dalam kasus itu, suggested_next_step akan selalu 'writer'.
@@ -319,9 +320,9 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
         # Kita cek 'raw_result' untuk memastikan LLM-nya jalan (bukan cuma error statis)
         if llm_suggestion_feedback and raw_result:
             if suggested_next_step == "reader":
-                prompt_lines.append("Saran Pencarian Konteks (dari AI):")
+                prompt_lines.append("Saran Pencarian Konteks (dari Verifier Agent):")
             else: # (suggested_next_step == "writer")
-                prompt_lines.append("Saran Perbaikan Konten (dari AI):")
+                prompt_lines.append("Saran Perbaikan Konten (dari Verifier Agent):")
             
             prompt_lines.append(llm_suggestion_feedback)
 
@@ -343,9 +344,13 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
         if not doc_json:
             print("[Verifier]: WARNING: Tidak ada documentation_json untuk diverifikasi. Melewatkan.")
             state["verification_result"] = {
-                'needs_revision': True, 
-                'feedback': ["Docstring JSON tidak berhasil dibuat oleh Writer."],
-                'suggested_next_step': 'writer'
+                "formatted": {
+                    'needs_revision': True,
+                    'feedback': ["Documentation JSON tidak berhasil dibuat oleh Writer. Harap ulangi permintaan tugas Anda dengan tepat dan akurat."],
+                    'suggested_next_step': 'writer',
+                    'suggestion_feedback': "Documentation JSON tidak berhasil dibuat oleh Writer. Harap ulangi permintaan tugas Anda dengan tepat dan akurat."
+                },
+                "raw": {}
             }
             return state
 
@@ -365,7 +370,7 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
         llm_input = {
             "konteks_writer": context,
             "kode_komponen": focal_code,
-            "docstring_output": state["docstring"],
+            "docstring_output": doc_json.model_dump_json(),
             "dynamic_checklist": dynamic_checklist
         }
         

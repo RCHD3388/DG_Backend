@@ -9,3 +9,4 @@ class AnalysisStartSuccessData(BaseModel):
 class AnalysisRequestBody(BaseModel):
     config_filename: str
     process_name: str
+    root_folder: str

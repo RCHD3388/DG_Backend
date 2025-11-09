@@ -12,6 +12,14 @@ class InternalCodeParser:
     def find_dependencies(self, component_id: str) -> List[str]:
         """Mengembalikan daftar nama dependensi untuk sebuah komponen."""
         return list(self.dependency_graph.get(component_id, []))
+    
+    def find_parents(self, component_id: str) -> List[str]:
+        """Mengembalikan daftar nama dependensi untuk sebuah komponen."""
+        component = self.components.get(component_id)
+        if component:
+            return list(component.component_parents)
+        else:
+            return []
 
     def find_called_by(self, component_id: str) -> List[str]:
         """Mengembalikan daftar lokasi di mana komponen dipanggil."""
@@ -32,7 +40,6 @@ class InternalCodeParser:
             return component.docgen_final_state.get("final_state", {}).get("docstring", "")
         else:
             return ""
-    
     
     def get_component_source_code(self, component_id: str) -> str:
         """Mengembalikan daftar kode sumber dari semua komponen."""
