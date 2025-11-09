@@ -214,8 +214,8 @@ Available Context: {context}
 
 {specific_rules}
 
-Now, generate a high-quality JSON documentation for the following Code Component based on the Available Context.
-You MUST only output the JSON object.
+Sekarang, hasilkan dokumentasi JSON berkualitas tinggi untuk 'Code Component' berikut berdasarkan 'Available Context'.
+Anda WAJIB hanya menghasilkan output berupa object JSON.
 ```python
 {focal_component}
 ```
@@ -226,13 +226,13 @@ You MUST only output the JSON object.
             # --- PANGGILAN KOREKSI: PROMPT HYBRID (HEMAT TOKEN) ---
             print("[Writer]: Building HYBRID prompt (Correction cycle)")
             
-            return f"""You have received feedback on your previous JSON output (which is in the chat history). Please re-generate the entire, corrected JSON object based on this feedback.
+            return f"""Anda telah menerima umpan balik (feedback) pada output JSON Anda sebelumnya (yang ada di 'chat history'). Harap buat ulang (re-generate) seluruh objek JSON yang telah dikoreksi berdasarkan *feedback* tersebut.
 
-IMPORTANT:
-1. Refer to your FIRST instruction for the full 'Available Context'.
-2. Use the 'Specific Rules' and 'Code Component' provided AGAIN below.
+PENTING:
+1. Rujuk ke instruksi PERTAMA Anda untuk 'Available Context' yang lengkap.
+2. Gunakan 'Specific Rules' dan 'Code Component' yang diberikan KEMBALI di bawah ini.
 
-You MUST only output the new, valid JSON object. Do not add any conversational text.
+Anda WAJIB hanya mengeluarkan objek JSON baru yang valid. Jangan tambahkan teks percakapan (conversational text) apa pun.
 {specific_rules}
 
 Code Component:
