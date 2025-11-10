@@ -98,10 +98,10 @@ class GraphVisualizer:
         # Mengakses atribut langsung dari objek CodeComponent
         depends_on = focal_component.depends_on
         used_by = focal_component.used_by
-        parent_class = getattr(focal_component, 'component_parents', None)
+        parent_classes = getattr(focal_component, 'component_parents', None)
 
         # Kondisi: Lewati jika tidak ada dependensi sama sekali
-        if not depends_on and not used_by and not parent_class:
+        if not depends_on and not used_by and not parent_classes:
             return None
 
         dot = self._create_base_digraph()
@@ -120,8 +120,8 @@ class GraphVisualizer:
             dot.edge(user_id, component_id, xlabel='uses', fontsize='8', fontcolor='gray50')
 
         # 4. Tambahkan edge dan node untuk 'parent_class'
-        parent_class = list(parent_class)
-        if parent_class:
+        parent_classes = list(parent_classes)
+        for parent_class in parent_classes:
             self._style_node(dot, parent_class)
             dot.edge(parent_class, component_id, xlabel='inherits', arrowhead='empty', style='dashed', fontsize='8', fontcolor='gray50')
         

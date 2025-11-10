@@ -68,8 +68,9 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
     -   **ATURAN WAJIB (PENTING):**
         1.  **`name`**: (WAJIB IDENTIK) Salin NAMA parameter **secara identik** dari signatur kode. HARUS *case-sensitive* dan menyertakan awalan `*` atau `**` jika ada (misal: `*args`, `**kwargs`).
         2.  **`type`**: (WAJIB IDENTIK) Salin TIPE DATA (type hint) **secara identik** dari signatur kode. HARUS *case-sensitive* dan menyertakan semua karakter (misal: `Optional[str]`, `Dict[str, Any]`).
-        3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) di signatur kode, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
-    -   **ATURAN KONTEN:**
+        3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) secara eksplisit di signatur kode, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+        4.  **`default`**: (WAJIB IDENTIK) JIKA parameter memiliki nilai *default* yang **tertulis eksplisit** di signatur kode (misal: `param: int = 5`), Anda **WAJIB** mendeteksi nilai tersebut dan menempatkannya **secara identik** (misal: `5`, `'test'`, `True`, `[{"A": "B"}]`) di *field* `default`. Jika tidak ada *default* eksplisit, *field* ini HARUS `null`.
+    -   **ATURAN KONTEN (PENTING):**
         1.  **`description`**: Deskripsi HARUS mendalam dan mencakup:
             -  **Signifikansi**: Mengapa parameter ini penting?
             -  **Batasan**: Apa rentang nilai yang valid atau *constraints*?
@@ -78,9 +79,9 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
 -   **`returns`**: (PENTING) Analisis nilai yang dikembalikan oleh fungsi.
     -   **ATURAN UTAMA (PENTING):**
         1.  **`type` (JIKA ADA HINT)**: (WAJIB IDENTIK) Salin TIPE DATA (return hint) **secara identik** dari signatur kode. HARUS *case-sensitive* (misal: `Optional[str]`, `Dict[str, Any]`).
-        2.  **`type` (JIKA KOSONG)**: JIKA **TIDAK ADA** TIPE DATA (return hint) TAPI fungsi/metode tersebut memiliki `return` statement (misal: `return data`), Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
-        3.  **`returns: null` (JIKA VOID)**: JIKA fungsi **TIDAK MENGEMBALIKAN NILAI EKSPLISIT** (misal: `return` saja, atau tidak ada `return`), Anda **WAJIB** menyetel *kunci* `returns` di JSON utama menjadi `null`.
-    -   **ATURAN KONTEN (JIKA `returns` BUKAN `null`):**
+        2.  **`type` (JIKA KOSONG)**: JIKA **TIDAK ADA** TIPE DATA (return hint) secara eksplisit di signatur kode, TAPI fungsi/metode tersebut memiliki `return` statement dengan nilai tertentu (misal: `return data`), Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"` (sedangkan penjelasan nilai yang dikembalikan dapat disertakan pada *field* `description`).
+        3.  **`returns: null` (JIKA VOID)**: JIKA fungsi **TIDAK MENGEMBALIKAN NILAI EKSPLISIT** (misal: `return` saja, atau tidak ada `return`), Anda **WAJIB** menyetel *field* `returns` di JSON utama menjadi `null`.
+    -   **ATURAN KONTEN (PENTING):**
         1.  **`description`**: Deskripsi HARUS mendalam dan menjelaskan:
             -  **Representasi**: Apa arti atau yang direpresentasikan oleh nilai ini?
             -  **Kemungkinan Nilai**: Apa kemungkinan nilai atau rentang spesifik yang dikembalikan?
@@ -89,7 +90,7 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
 -   **`yields`**: (KHUSUS GENERATOR) JIKA fungsi ini adalah generator (MENGGUNAKAN `yield`), analisis nilai yang di-*yield*.
     -   **ATURAN UTAMA (PENTING):**
         1.  **`type` (JIKA ADA HINT)**: (WAJIB IDENTIK) Salin TIPE DATA yang di-*yield* **secara identik**. (misal: dari `Generator[int, ...]` tipenya adalah `int`).
-        2.  **`type` (JIKA KOSONG)**: JIKA **TIDAK ADA** TIPE DATA (return hint) TAPI fungsi memiliki `yield` statement, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+        2.  **`type` (JIKA KOSONG)**: JIKA **TIDAK ADA** TIPE DATA (return hint) yang ditulis secara eksplisit pada kode, TAPI fungsi memiliki `yield` statement, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"` (sedangkan penjelasan nilai yang dikembalikan dapat disertakan pada *field* `description`).
     -   **ATURAN KONTEN:**
         1.  **`description`**: Deskripsi HARUS mendalam dan menjelaskan **Representasi**, **Kemungkinan Nilai**, dan **Kondisi** dari nilai yang di-*yield*.
 
@@ -97,7 +98,7 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
     -   **ATURAN WAJIB (PENTING):**
         1.  **`name`**: (WAJIB IDENTIK) Salin NAMA secara identik dan wajib case-sensitive sesuai yang terdapat pada code.
         2.  **`type`**: (WAJIB IDENTIK) Salin TIPE DATA secara identik dan wajib case-sensitive sesuai yang terdapat pada code.
-        3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) di signatur kode, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+        3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) di signatur kode, Anda **WAJIB** mengisi *field* `type` dengan nilai `"None"`.
     -   **ATURAN KONTEN:**
         1.  **`description`**: Deskripsi HARUS mendalam dan mencakup **Signifikansi**, **Batasan**, dan **Interdependensi**.
 
@@ -146,7 +147,8 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
     -   **ATURAN WAJIB (PENTING):**
         1.  **`name`**: (WAJIB IDENTIK) Salin NAMA parameter **secara identik** dari signatur `__init__`. HARUS *case-sensitive* dan menyertakan awalan `*` atau `**` jika ada. (Abaikan `self`).
         2.  **`type`**: (WAJIB IDENTIK) Salin TIPE DATA (type hint) **secara identik** dari signatur `__init__`. HARUS *case-sensitive* (misal: `Optional[str]`).
-        3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) di signatur `__init__`, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+        3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) yang ditulis secara eksplisit di signatur `__init__`, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+        4.  **`default`**: (WAJIB IDENTIK) JIKA parameter memiliki nilai *default* yang **tertulis eksplisit** di signatur kode (misal: `param: int = 5`), Anda **WAJIB** mendeteksi nilai tersebut dan menempatkannya **secara identik** (misal: `5`, `'test'`, `True`, `[{"A": "B"}]`) di *field* `default`. Jika tidak ada *default* eksplisit, *field* ini HARUS `null`.
     -   **ATURAN KONTEN:**
         1.  **`description`**: (dalam Bahasa Indonesia) Deskripsi HARUS mendalam dan mencakup:
             -  **Signifikansi**: Mengapa parameter ini penting untuk inisialisasi? Apa pengaruhnya terhadap *instance*?
@@ -160,6 +162,7 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
         1.  **`name`**: (WAJIB IDENTIK) Tulis NAMA atribut **tanpa** awalan `self.` (misal: deteksi `self.my_attr`, tulis `my_attr`). HARUS *case-sensitive*.
         2.  **`type`**: (WAJIB IDENTIK) Salin TIPE DATA (type hint) **secara identik** dari kode (misal: dari `self.my_attr: int`). HARUS *case-sensitive*.
         3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) yang terdeteksi untuk atribut, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+        4.  **`default`**: (WAJIB IDENTIK) JIKA atribut memiliki nilai *default* yang **tertulis eksplisit**, Anda **WAJIB** mendeteksi nilai tersebut dan menempatkannya **secara identik** di *field* `default`. Jika tidak ada *default*, maka *field* ini HARUS `null`.
     -   **ATURAN KONTEN:**
         1.  **`description`**: (dalam Bahasa Indonesia) Deskripsi HARUS mendalam dan menjelaskan:
             -  **Tujuan/Signifikansi**: Apa tujuan atribut ini dan mengapa ia disimpan/diekspos?
@@ -168,7 +171,7 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
     
 -   **`examples`**: (Sangat dianjurkan) Tulis contoh kode singkat dalam format **doctest** (dimulai dengan `>>> `).
     -   **ATURAN KETAT**: Fokus untuk **mengilustrasikan penggunaan**, BUKAN untuk *testing*. Contoh HARUS RINGKAS, JELAS, dan FAKTUAL.
-    -   **ANTI-HALUSINASI**: **Lebih baik mengembalikan `null`** daripada mengarang (berhalusinasi) skenario yang tidak faktual atau tidak jelas.
+    -   **ANTI-HALUSINASI**: **Lebih baik mengembalikan `null` ** daripada mengarang (berhalusinasi) skenario yang tidak faktual atau tidak jelas.
     -   **FOKUS KONTEN**: Tunjukkan **Skenario Praktis**, **Kombinasi Parameter** umum, atau (jika relevan) pemanggilan yang memicu **Exception**.
     -   **ATURAN FORMAT (WAJIB):**
         1.  Jika ada **beberapa** contoh, pisahkan dengan **baris kosong**.
@@ -272,7 +275,7 @@ Code Component:
             return prompt_value # PENTING: Meneruskan PromptValue ke LLM
          
          # 4. Bangun chain (Prompt -> LLM -> Parser)
-         chain = prompt | RunnableLambda(print_prompt_and_pass) | self.main_llm | self.json_parser
+         chain = prompt | RunnableLambda(print_prompt_and_pass) | self.main_llm.with_config({"tags": [self.name]}) | self.json_parser
          
          return chain
          

@@ -150,7 +150,7 @@ class Orchestrator(OrchestratorBase):
             # SAVE PROCESS READER
             save_docgen_component_process(
                 file_path = self.current_component_raw_results_path / f"Reader_{state["reader_search_attempts"]}.json",
-                content = state["reader_response"].model_dump(),
+                content = state["reader_response"].model_dump() if state["reader_response"] else {},
                 type = "json"
                 )
             
@@ -165,7 +165,7 @@ class Orchestrator(OrchestratorBase):
                 # SAVE PROCESS SEARCHER
                 save_docgen_component_process(
                         file_path = self.current_component_raw_results_path / f"Searcher_{state["reader_search_attempts"]}.json",
-                        content = self.searcher.gathered_data,
+                        content = self.searcher.gathered_data if self.searcher.gathered_data else {},
                         type = "json"
                     )
                 
@@ -192,7 +192,7 @@ class Orchestrator(OrchestratorBase):
                 # SAVE PROCESS WRITER
                 save_docgen_component_process(
                         file_path = self.current_component_raw_results_path / f"Writer_{state['verifier_rejection_count']}.json",
-                        content = state["documentation_json"].model_dump(),
+                        content = state["documentation_json"].model_dump() if state["documentation_json"] else {},
                         type = "json"
                     )
                 
@@ -202,7 +202,7 @@ class Orchestrator(OrchestratorBase):
                     # SAVE PROCESS VERIFIER
                     save_docgen_component_process(
                             file_path = self.current_component_raw_results_path / f"Verifier_{state["verifier_rejection_count"]}.txt",
-                            content = state["verification_result"],
+                            content = state["verification_result"] if state["verification_result"] else {},
                             type = "json"
                         )
             

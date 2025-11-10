@@ -96,7 +96,7 @@ IMPORTANT: Your job is NOT to write the docstring, only to determine if informat
             MessagesPlaceholder(variable_name="chat_history")
         ]).partial(format_instructions=format_instructions)
         
-        chain = prompt | self.llm | self.json_parser
+        chain = prompt | self.llm.with_config({"tags": [self.name]}) | self.json_parser
         return chain
 
     def _build_human_prompt(self, state: AgentState) -> str:

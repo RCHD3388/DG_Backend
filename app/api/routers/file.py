@@ -8,10 +8,11 @@ from app.schemas.response.file_schema import ClearDirectorySuccessData, FileList
 from app.schemas.response_schema import MessageResponseData, StandardResponse
 
 from app.services.file_service import FileService
+from app.utils.file_utils import clear_directory_contents
 from app.api.dependencies import get_file_service
 from app.core.exceptions import FileNotFound, FileOperationError, InvalidFileNameError
 # --------------------------------------------------------
-from app.core.config import EXTRACTED_PROJECTS_DIR
+from app.core.config import EXTRACTED_PROJECTS_DIR, DEPENDENCY_GRAPHS_DIR, PYCG_OUTPUT_DIR
 
 router = APIRouter(
     prefix="/files",

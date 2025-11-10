@@ -160,6 +160,15 @@ Tugas Anda adalah membandingkan KODE ASLI dengan DOKUMENTASI YANG DIHASILKAN.
 Anda HARUS mengevaluasi setiap bagian satu per satu dan memberikan kritik (critique) yang jujur.
 Jangan malas. Fokus utama Anda adalah menemukan HALUSINASI atau KETIDAKAKURATAN.
 
+Selain akurasi faktual, Anda juga HARUS memverifikasi bahwa semua teks deskriptif mematuhi Aturan Penulisan berikut:
+
+**TECHNICAL WRITING DIRECTIVES (ATURAN GAYA):**
+1.  **Bahasa**: Penjelasan yang diberikan harus dalam bahasa Indonesia, kecuali istilah atau hal teknis maka dapat menggunakan bahasa Inggris.
+1.  **Gunakan Present Tense:** harus menggunakan **Present Tense** (Bentuk Waktu Sekarang Sederhana). 
+2.  **Gunakan Active Voice:** Prioritaskan **Active Voice** (Kalimat Aktif).
+3.  **Timeless:** HINDARI frasa yang terikat waktu (misalnya: "saat ini", "sekarang").
+4.  **Jelas & Ringkas:** Konten HARUS jelas, padat, dan tidak ambigu.
+
 Output Anda HARUS berupa JSON yang valid sesuai skema yang diberikan.
 """
 
@@ -203,20 +212,26 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
         # 2. Tambahkan string ceklis dinamis
         self._verifier_checklist_function: str = """
 1.  **short_summary**: Apakah summary ini secara akurat (berdasarkan kode dan konteks) mendeskripsikan FUNGSI UTAMA kode?
-2.  **extended_summary**: Apakah deskripsi ini faktual berdasarkan kode dan konteks? Apakah menjelaskan 'mengapa' dan 'bagaimana' dengan benar?
+2.  **extended_summary**: Apakah deskripsi ini faktual berdasarkan kode dan konteks? Apakah menjelaskan fungsionalitas dengan benar?
 3.  **parameters**: (PENTING) Evaluasi deskripsi parameter: Apakah sudah mencakup **Signifikansi**, **Batasan** (constraints), dan **Interdependensi**? Apakah deskripsinya cocok dengan PENGGUNAANNYA di kode?
 4.  **returns**: (PENTING) Evaluasi deskripsi nilai kembali: Apakah sudah mencakup **Representasi** (artinya), **Kemungkinan Nilai**, dan **Kondisi**?
 5.  **yields**: (Jika ini generator) Apakah `yields` didokumentasikan dengan benar (menggantikan/melengkapi `returns`)?
 6.  **raises**: (PENTING) Evaluasi deskripsi error: Apakah sudah mencakup penjelasan **Kondisi Spesifik** yang baik?
-6.  **warns**: (PENTING) Evaluasi deskripsi warning: Apakah sudah mencakup penjelasan **Kondisi Spesifik** yang baik?
-7.  **examples**: (PENTING) Apakah contoh kode ini *halusinasi*? Apakah tipe data di contoh cocok dengan signatur fungsi di kode?
+7.  **warns**: (PENTING) Evaluasi deskripsi warning: Apakah sudah mencakup penjelasan **Kondisi Spesifik** yang baik?
+8.  **examples**: (PENTING) Apakah contoh kode ini *halusinasi*? Apakah tipe data di contoh cocok dengan signatur fungsi di kode?
+
+**Akurasi Data** (Penting) : 
+- Apakah SEMUA *field* `name`, `type`, `error`, dan `warning` di JSON sudah mematuhi **ATURAN AKURASI DATA** (100% Identik dengan yang dituliskan secara EKSPLISIT, dan `type` WAJIB diisi *string* `"None"` jika tidak dituliskan secara eksplisit)?.
 """
         self._verifier_checklist_class: str = """
 1.  **short_summary**: Apakah summary ini secara akurat (berdasarkan kode dan konteks) mendeskripsikan FUNGSI UTAMA kode?
-2.  **extended_summary**: Apakah deskripsi ini faktual berdasarkan kode dan konteks? Apakah menjelaskan 'mengapa' dan 'bagaimana' dengan benar?
+2.  **extended_summary**: Apakah deskripsi ini faktual berdasarkan kode dan konteks? Apakah menjelaskan fungsionalitas dengan benar?
 3.  **parameters** (dari `__init__`): (PENTING) Evaluasi deskripsi parameter constructor: Apakah sudah mencakup **Signifikansi** (pengaruhnya pada instance), **Batasan** (nilai valid), dan **Relasi** antar parameter?
 4.  **attributes**: (PENTING) Evaluasi deskripsi atribut: Apakah sudah mencakup **Tujuan/Signifikansi**, **Tipe/Nilai** yang valid, dan **Dependensi** antar atribut?
 5.  **examples**: (PENTING) Apakah contoh kode ini *halusinasi*? Apakah inisialisasi dan pemanggilan metodenya logis berdasarkan kode?
+
+**Akurasi Data** (Penting) : 
+- Apakah SEMUA *field* `name`, `type`, `error`, dan `warning` di JSON sudah mematuhi **ATURAN AKURASI DATA** (100% Identik dengan yang dituliskan secara EKSPLISIT, dan `type` WAJIB diisi *string* `"None"` jika tidak dituliskan secara eksplisit)?.
 """
 
         # 3.3. Inisialisasi Chain LLM (LCEL)
@@ -235,7 +250,7 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
         ]).partial(format_instructions=format_instructions)
         
         # Asumsi self.llm ada dari BaseAgent
-        chain = prompt | self.llm | self.verifier_parser
+        chain = prompt | self.llm.with_config({"tags": [self.name]}) | self.verifier_parser
         return chain
 
     def _parse_llm_report(self, report: SingleCallVerificationReport) -> Tuple[List[str], str]:

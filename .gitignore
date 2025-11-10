@@ -14,6 +14,7 @@ process_outputs/
 env/
 venv/
 pycg-venv/
+pycg2-venv/
 agent_config.yaml
 
 # User-specific files
