@@ -24,7 +24,7 @@ logger = CustomLogger("Orchestrator")
 
 class Orchestrator(OrchestratorBase):
     def __init__(self, repo_path: str = "", config_path: str = YAML_CONFIG_PATH, internalCodeParser: InternalCodeParser = None):
-        print("[Orchestrator] Initiate Manual Orchestrator ...")
+        logger.info_print("Initiate Manual Orchestrator ...")
         
         self.config = {}
         with open(str(config_path), 'r') as f:
@@ -82,7 +82,7 @@ class Orchestrator(OrchestratorBase):
         # mendapatkan indeks saat ini
         index = self._pool_index_counter % num_sets
         
-        print(f"[Orchestrator]: Menggunakan set agen [Indeks {index}] untuk komponen ini.")
+        logger.info_print(f"Menggunakan set agen [Indeks {index}] untuk komponen ini.")
         
         self.reader = self.reader_pool[index]
         self.searcher = self.searcher_pool[index]
@@ -182,7 +182,7 @@ class Orchestrator(OrchestratorBase):
             elif reader_output.info_need:
                 logger.error_print("Reader max attempts reached.")
 
-            print("[-----]")
+            logger.info_print("[-----]")
 
             # WRITER-VERIFIER CYCLE
             while True:
@@ -215,15 +215,15 @@ class Orchestrator(OrchestratorBase):
                 # 1. Kondisi Selesai (Lolos verifikasi ATAU sudah maks percobaan)
                 if not needs_revision or state['verifier_rejection_count'] >= self.max_verifier_rejections:
                     if not needs_revision:
-                        print(f"[Orchestrator]: Verifikasi Lolos untuk {state['component'].id}.")
+                        logger.error_print(f"Verifikasi Lolos untuk {state['component'].id}.")
                     else:
-                        print(f"[Orchestrator]: Verifikasi sudah mencapai batas maksimum ({state['verifier_rejection_count']}). Berhenti.")
+                        logger.error_print(f"Verifikasi sudah mencapai batas maksimum ({state['verifier_rejection_count']}). Berhenti.")
                     
                     return self.return_documentation_result(state, usage_callback)
                 
                 # 2. Else (Perlu Revisi dan masih ada sisa percobaan)
                 else:
-                    print(f"[Orchestrator]: Verifikasi GAGAL (Percobaan {state['verifier_rejection_count'] + 1}/{self.max_verifier_rejections}). Memulai siklus revisi...")
+                    logger.info_print(f"Verifikasi GAGAL (Percobaan {state['verifier_rejection_count'] + 1}/{self.max_verifier_rejections}). Memulai siklus revisi...")
                     
                     # Tambah counter penolakan
                     state["verifier_rejection_count"] = state['verifier_rejection_count'] + 1
@@ -232,7 +232,7 @@ class Orchestrator(OrchestratorBase):
                     
                     # 2.1 Reader Cycle
                     if suggested_next_step == "reader":
-                        print(f"[Orchestrator]: Saran Verifier: Kembali ke 'Reader' untuk konteks tambahan.")
+                        logger.info_print(f"Saran Verifier: Kembali ke 'Reader' untuk konteks tambahan.")
                         
                         # 1. Add context suggestion to reader memory
                         self.reader.add_to_memory("user", f"Additional context needed: \n{verifier_prompt}")
@@ -250,16 +250,16 @@ class Orchestrator(OrchestratorBase):
                     # 2.2 Writer Cycle
                     else:
                         if suggested_next_step == "writer":
-                            print(f"[Orchestrator]: Saran Verifier: Kembali ke 'Writer' untuk perbaikan konten.")
+                            logger.info_print(f"Saran Verifier: Kembali ke 'Writer' untuk perbaikan konten.")
                         else:
-                            print(f"[Orchestrator]: Saran Verifier ('{suggested_next_step}') tidak dikenali. Default kembali ke 'Writer'.")
+                            logger.info_print(f"Saran Verifier ('{suggested_next_step}') tidak dikenali. Default kembali ke 'Writer'.")
                         
                         self.writer.add_to_memory("user", f"Please improve the documentation based on this suggestion: \n{verifier_prompt}")
 
     
     def return_documentation_result(self, state: AgentState, usage_callback: TokenUsageCallback) -> Dict[str, Any]:
         """Mengembalikan hasil dokumentasi akhir dan statistik penggunaan token."""
-        print(usage_callback.get_stats())
+        logger.info_print(usage_callback.get_stats())
         return {
             "final_state": state,
             "usage_stats": usage_callback.get_stats()
@@ -270,15 +270,15 @@ class Orchestrator(OrchestratorBase):
             #     if not state["verification_result"]["needs_revision"] or state['verifier_rejection_count'] >= self.max_reader_search_attempts:
             #         # -> IF DONE (docstring accepted or max rejections reached, exit loop)
             #         if state['verifier_rejection_count'] >= self.max_reader_search_attempts:
-            #             print("[Orchestrator]: Verifier max rejections reached.")
+            #             logger.info_print("[Orchestrator]: Verifier max rejections reached.")
             #         else:
-            #             print("[Orchestrator]: Docstring generated successfully!.. No more revision needed.")
+            #             logger.info_print("[Orchestrator]: Docstring generated successfully!.. No more revision needed.")
 
             #         return self.return_documentation_result(state, usage_callback)
             #     else:
             #         # -> ELSE NEED REVISION, increment rejection count and regenerate
             #         state['verifier_rejection_count'] += 1
-            #         print(f"[Orchestrator] Docstring rejected {state['verifier_rejection_count']} times, regenerating ...")
+            #         logger.info_print(f"[Orchestrator] Docstring rejected {state['verifier_rejection_count']} times, regenerating ...")
 
             #         self.writer.clear_memory()
 

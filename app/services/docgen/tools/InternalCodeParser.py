@@ -1,6 +1,10 @@
 from typing import Dict, List, Any
 from app.schemas.models.code_component_schema import CodeComponent
 
+from app.utils.CustomLogger import CustomLogger
+
+logger = CustomLogger("InternalCodeParser")
+
 class InternalCodeParser:
     def __init__(self, repo_path: str, components: Dict[str, CodeComponent] = {}, dependency_graph: Dict[str, List[str]] = {}, pagerank_scores: Dict[str, float] = {}):
         self.repo_path = repo_path
@@ -136,7 +140,7 @@ class InternalCodeParser:
             #    Ini untuk memastikan kita tidak salah memfilter 'MyClass' itu sendiri jika ia memanggil.
             
             if caller_id == class_id_prefix:
-                print(f"[InternalCodeParser] Delete class dari method called by: '{caller_id}'")
+                logger.info_print(f"[InternalCodeParser] Delete class dari method called by: '{caller_id}'")
                 continue # Lewati (jangan tambahkan ke daftar baru)
             
             filtered_list.append(caller_id)

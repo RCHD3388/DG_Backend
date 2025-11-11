@@ -104,9 +104,9 @@ class Searcher(BaseAgent):
             context_content = self.internalCodeParser.get_component_docstring(dep_id)
             context_type = "documentation"
 
-            # Heuristik #1: Fallback ke kode sumber jika docstring tidak memadai
-            if not context_content or len(context_content) < 15:
-                print(f"    -> [Searcher] Docstring untuk '{dep_id}' tidak ada/pendek, mengambil kode sumber.")
+            # Heuristik #1: Fallback ke kode sumber jika documentation tidak memadai
+            if not context_content or len(context_content) < 30:
+                logger.error_print(f"Docstring untuk '{dep_id}' tidak ada/pendek, mengambil kode sumber.")
                 context_content = self.internalCodeParser.get_component_source_code(dep_id)
                 context_type = "source_code"
             
@@ -134,7 +134,7 @@ class Searcher(BaseAgent):
 
             # Heuristik #1: Fallback ke kode sumber jika docstring tidak memadai
             if not context_content or len(context_content) < 15:
-                print(f"    -> [Searcher] Docstring untuk '{parent_id}' tidak ada/pendek, mengambil kode sumber.")
+                logger.error_print(f"Docstring untuk '{parent_id}' tidak ada/pendek, mengambil kode sumber.")
                 context_content = self.internalCodeParser.get_component_source_code(parent_id)
                 context_type = "source_code"
             
@@ -278,9 +278,9 @@ class Searcher(BaseAgent):
             context_parts.append(f"{header}\n\n" + "\n---\n".join(ext_blocks))
 
         formatted_result = "\n\n".join(filter(None, context_parts))
-        # with open(DUMMY_TESTING_DIRECTORY / f"FinalContx_{key}{random.randint(0, 1000)}.md", "w", encoding="utf-8") as f:
-        #     json.dump(formatted_result, f, indent=4, ensure_ascii=False)
-            
+        
+        if not formatted_result or formatted_result != "":
+            formatted_result = "Tidak terdapat konteks yang cocok"
         return formatted_result
     
     def apply_context_policy(self, context_string: str, focal_component_code: str) -> Tuple[bool, int]:
@@ -292,18 +292,18 @@ class Searcher(BaseAgent):
                 - True jika valid, False jika tidak.
                 - Jumlah token yang melebihi budget (0 jika valid).
         """
-        print("[Policy] Menerapkan kebijakan konteks...")
+        logger.info_print("[Policy] Menerapkan kebijakan konteks...")
         
         total_tokens = len(self.tokenizer.encode(context_string, disallowed_special=())) + len(self.tokenizer.encode(focal_component_code))
         
-        print(f"[Policy] Total token terhitung: {total_tokens}. Budget: {self.max_context_token}.")
+        logger.info_print(f"[Policy] Total token terhitung: {total_tokens}. Budget: {self.max_context_token}.")
         
         if total_tokens <= self.max_context_token:
-            print("[Policy] Konteks valid.")
+            logger.info_print("[Policy] Konteks valid.")
             return True, 0
         else:
             overage = total_tokens - self.max_context_token
-            print(f"[Policy] Konteks melebihi budget. Perlu pemotongan ~{overage} token.")
+            logger.info_print(f"[Policy] Konteks melebihi budget. Perlu pemotongan ~{overage} token.")
             return False, overage
         
     def truncate_context(self, gathered_data: Dict[str, Any], tokens_to_remove: int) -> Tuple[Dict[str, Any], Dict[str, Any]]:
@@ -315,7 +315,7 @@ class Searcher(BaseAgent):
                 - Data yang sudah dipotong.
                 - Dictionary berisi informasi apa yang dihilangkan pada iterasi ini.
         """
-        print(f"[Truncate] Memulai proses pemotongan untuk mengurangi ~{tokens_to_remove} token.")
+        logger.info_print(f"[Truncate] Memulai proses pemotongan untuk mengurangi ~{tokens_to_remove} token.")
         
         truncated_data = gathered_data.copy()
         omissions_this_round = {"dependencies": [], "used_by": 0, "external": 0}
@@ -328,7 +328,7 @@ class Searcher(BaseAgent):
         external_data = truncated_data.get("external")
         if external_data:
             removed_query = list(external_data.keys())[-1]
-            print(f"    -> [Truncate] Menghapus hasil pencarian eksternal untuk query: '{removed_query}'")
+            logger.info_print(f"    -> [Truncate] Menghapus hasil pencarian eksternal untuk query: '{removed_query}'")
             del external_data[removed_query]
             omissions_this_round["external"] = 1
             return truncated_data, omissions_this_round
@@ -336,14 +336,14 @@ class Searcher(BaseAgent):
         # --- Prioritas 2: Hapus (atau ringkas) Konteks Kelas ---
         class_context = truncated_data.get("internal", {}).get("class_context")
         if class_context:
-            print("    -> [Truncate] Menghapus konteks kelas sebagai langkah terakhir.")
+            logger.info_print("    -> [Truncate] Menghapus konteks kelas sebagai langkah terakhir.")
             truncated_data["internal"]["class_context"] = None
             return truncated_data, omissions_this_round
         
         # 2.1. Hapus 'used_by' (contoh penggunaan) terlebih dahulu, karena seringkali
         #    kurang krusial dibandingkan struktur dependensi.
         if truncated_data.get("internal", {}).get("used_by"):
-            print("[Truncate] (Template) Menghapus satu contoh 'used_by' terakhir.")
+            logger.info_print("[Truncate] (Template) Menghapus satu contoh 'used_by' terakhir.")
             truncated_data["internal"]["used_by"].pop()
             omissions_this_round["used_by"] = 1
             return truncated_data, omissions_this_round
@@ -354,7 +354,7 @@ class Searcher(BaseAgent):
         if dependencies:
             # dependensi sudah diurutkan berdasarkan pagerank, jadi yang terakhir adalah yang terendah
             lowest_rank_dep_id = list(dependencies.keys())[-1]
-            print(f"[Truncate] (Template) Menghapus dependensi dengan rank terendah: {lowest_rank_dep_id}")
+            logger.info_print(f"[Truncate] (Template) Menghapus dependensi dengan rank terendah: {lowest_rank_dep_id}")
             del dependencies[lowest_rank_dep_id]
             omissions_this_round["dependencies"].append(lowest_rank_dep_id)
             return truncated_data, omissions_this_round
@@ -364,20 +364,20 @@ class Searcher(BaseAgent):
         if class_parents_dict:
             # Hapus satu parent class terakhir (kondisi saat ini telah terurut berdasarkan PageRank)
             removed_parent_id = list(class_parents_dict.keys())[-1]
-            print(f"    -> [Truncate] Menghapus konteks parent class: {removed_parent_id}")
+            logger.info_print(f"    -> [Truncate] Menghapus konteks parent class: {removed_parent_id}")
             del class_parents_dict[removed_parent_id]
             omissions_this_round["class_parent"].append(removed_parent_id)
             return truncated_data, omissions_this_round
 
         # 3. Jika semua sudah habis, tidak ada lagi yang bisa dipotong.
-        print("[Truncate] Tidak ada lagi yang bisa dipotong.")
+        logger.info_print("[Truncate] Tidak ada lagi yang bisa dipotong.")
         return truncated_data,
     
     def process(self, state: AgentState) -> AgentState:
         """
         Titik masuk utama untuk Searcher. Ia memutuskan pencarian mana yang akan dijalankan.
         """
-        print("[Searcher]: Run - Gathering More context ...")
+        logger.info_print("Run - Gathering More context ...")
 
         parsed_request = state.get("reader_response", ReaderOutput(info_need=False))
         

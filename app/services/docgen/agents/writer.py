@@ -16,6 +16,10 @@ from app.services.docgen.agents.agent_output_schema import NumpyDocstring, Docst
 from ..base import BaseAgent
 from ..state import AgentState
 
+from app.utils.CustomLogger import CustomLogger
+
+logger = CustomLogger("Writer")
+
 class Writer(BaseAgent):
       
       def __init__(self, llm_config: Dict[str, Any]):
@@ -28,7 +32,7 @@ class Writer(BaseAgent):
    **PRIMARY DIRECTIVES:**
    1.  **Language:** All descriptive text MUST be in professional Bahasa Indonesia. Technical terms, code names, and types MUST remain in English.
    2.  **Output Format:** Your ENTIRE output MUST be a single, valid JSON object that strictly adheres to the provided schema. Do not output any text outside of the JSON structure.
-   3.  **Content Focus:** Provide factual, concise content. Do not add formatting like indentation or quotes; the system will render the final docstring.
+   3.  **Content Focus:** Provide factual, concise content. Do not add formatting like indentation or quotes; the system will render the final documentation.
 
    The required JSON schema is provided in the user prompt under `OUTPUT FORMAT INSTRUCTIONS`.
    
@@ -111,12 +115,12 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
         -   **`description`**: Jelaskan **kondisi dan keadaan** yang memicu *warning* ini.        
 
 -   **`examples`**: (Sangat dianjurkan) Tulis contoh kode singkat dalam format **doctest** (dimulai dengan `>>> `).
-    -   **ATURAN KETAT**: Fokus untuk **mengilustrasikan penggunaan**, BUKAN untuk *testing*. Contoh HARUS RINGKAS, JELAS, dan FAKTUAL.
-    -   **ANTI-HALUSINASI**: **Lebih baik mengembalikan `null`** daripada mengarang (berhalusinasi) skenario yang tidak faktual atau tidak jelas.
-    -   **FOKUS KONTEN**: Tunjukkan **Skenario Praktis**, **Kombinasi Parameter** umum, atau (jika relevan) pemanggilan yang memicu **Exception**.
+    -   **PERINGATAN UTAMA (ANTI-HALUSINASI)**: Contoh HARUS 100% FAKTUAL dan JELAS. **Lebih baik mengembalikan `null`** daripada mengarang (berhalusinasi) skenario yang tidak faktual atau tidak jelas.
+    -   **ATURAN KONTEKS (WAJIB)**: Fokus HANYA pada baris kode yang memanggil komponen tersebut. **WAJIB ASUMSIKAN** semua dependensi (modul, *instance* kelas) sudah ada. **DILARANG KERAS** mendefinisikan ulang kelas/fungsi/method atau menyertakan `import` yang tidak perlu.
+    -   **FOKUS KONTEN (Ringkas)**: Fokus untuk **mengilustrasikan penggunaan** (bukan *testing*). Tunjukkan **Skenario Praktis**, **Kombinasi Parameter** umum, atau (jika relevan) pemanggilan yang memicu **Exception**.
     -   **ATURAN FORMAT (WAJIB):**
-        1.  Jika ada **beberapa** contoh, pisahkan dengan **baris kosong**.
-        2.  Sangat dianjurkan untuk menyertakan **komentar ringkas dan to-the-point** (diawali `#`) di atas setiap contoh untuk menjelaskannya.
+        1.  Pisahkan **beberapa** contoh dengan **baris kosong**.
+        2.  Sertakan **komentar ringkas dan to-the-point** (diawali `#`) untuk menjelaskan setiap contoh.
 
 -   **Bagian Lain (`notes`, `see_also`, `warnings_section` - OPSIONAL):**
     -   **PERINGATAN KETAT:** HANYA isi *field-field* ini jika informasi yang relevan 100% faktual, jelas dari konteks/kode, DAN penting/krusial untuk diketahui pembaca.
@@ -156,7 +160,7 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
             -  **Relasi**: Apakah nilainya bergantung atau memengaruhi parameter lain saat inisialisasi?
             
 -   **`attributes`**: (PENTING) Deteksi **atribut publik non-metode (non-method attributes)** yang relevan.
-    -   Ini biasanya adalah atribut yang didefinisikan di *class body* atau sebagai `self.nama_atribut` di dalam `__init__`.
+    -   Ini biasanya adalah atribut yang didefinisikan di *class body* atau sebagai `self.nama_atribut` di dalam `__init__` yang terdapat pada komponen kode yang SEDANG didokumentasikan.
     -   Untuk setiap atribut, Anda HARUS menyediakan 'name', 'type', dan 'description'.
     -   **ATURAN WAJIB (PENTING):**
         1.  **`name`**: (WAJIB IDENTIK) Tulis NAMA atribut **tanpa** awalan `self.` (misal: deteksi `self.my_attr`, tulis `my_attr`). HARUS *case-sensitive*.
@@ -168,14 +172,14 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
             -  **Tujuan/Signifikansi**: Apa tujuan atribut ini dan mengapa ia disimpan/diekspos?
             -  **Batasan Nilai**: (Opsional) Jelaskan batasan nilai yang valid jika *type hint* tidak cukup (misal: "Harus integer positif").
             -  **Dependensi**: Apakah nilainya bergantung pada atribut atau `parameter` constructor lain?
-    
+
 -   **`examples`**: (Sangat dianjurkan) Tulis contoh kode singkat dalam format **doctest** (dimulai dengan `>>> `).
-    -   **ATURAN KETAT**: Fokus untuk **mengilustrasikan penggunaan**, BUKAN untuk *testing*. Contoh HARUS RINGKAS, JELAS, dan FAKTUAL.
-    -   **ANTI-HALUSINASI**: **Lebih baik mengembalikan `null` ** daripada mengarang (berhalusinasi) skenario yang tidak faktual atau tidak jelas.
-    -   **FOKUS KONTEN**: Tunjukkan **Skenario Praktis**, **Kombinasi Parameter** umum, atau (jika relevan) pemanggilan yang memicu **Exception**.
+    -   **PERINGATAN UTAMA (ANTI-HALUSINASI)**: Contoh HARUS 100% FAKTUAL dan JELAS. **Lebih baik mengembalikan `null`** daripada mengarang (berhalusinasi) skenario yang tidak faktual atau tidak jelas.
+    -   **ATURAN KONTEKS (WAJIB)**: Fokus HANYA pada baris kode yang memanggil komponen tersebut. **WAJIB ASUMSIKAN** semua dependensi (modul, *instance* kelas) sudah ada. **DILARANG KERAS** mendefinisikan ulang kelas/fungsi/method atau menyertakan `import` yang tidak perlu.
+    -   **FOKUS KONTEN (Ringkas)**: Fokus untuk **mengilustrasikan penggunaan** (bukan *testing*). Tunjukkan **Skenario Praktis**, **Kombinasi Parameter** umum, atau (jika relevan) pemanggilan yang memicu **Exception**.
     -   **ATURAN FORMAT (WAJIB):**
-        1.  Jika ada **beberapa** contoh, pisahkan dengan **baris kosong**.
-        2.  Sangat dianjurkan untuk menyertakan **komentar ringkas dan to-the-point** (diawali `#`) di atas setiap contoh untuk menjelaskannya.
+        1.  Pisahkan **beberapa** contoh dengan **baris kosong**.
+        2.  Sertakan **komentar ringkas dan to-the-point** (diawali `#`) untuk menjelaskan setiap contoh.
 
 -   **Bagian Lain (`notes`, `see_also`, `warnings_section` - OPSIONAL):**
     -   **PERINGATAN KETAT:** HANYA isi *field-field* ini jika informasi yang relevan 100% faktual, jelas dari konteks/kode, DAN penting/krusial untuk diketahui pembaca.
@@ -208,7 +212,7 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
          
          if is_first_attempt:
             # --- PANGGILAN PERTAMA: PROMPT LENGKAP ---
-            print("[Writer]: Building FULL prompt (First attempt)")
+            logger.info_print("Building FULL prompt (First attempt)")
             
             context = state.get("context", "No context was gathered.")
             
@@ -227,7 +231,7 @@ Anda WAJIB hanya menghasilkan output berupa object JSON.
 
          else:
             # --- PANGGILAN KOREKSI: PROMPT HYBRID (HEMAT TOKEN) ---
-            print("[Writer]: Building HYBRID prompt (Correction cycle)")
+            logger.info_print("Building HYBRID prompt (Correction cycle)")
             
             return f"""Anda telah menerima umpan balik (feedback) pada output JSON Anda sebelumnya (yang ada di 'chat history'). Harap buat ulang (re-generate) seluruh objek JSON yang telah dikoreksi berdasarkan *feedback* tersebut.
 
@@ -275,7 +279,7 @@ Code Component:
             return prompt_value # PENTING: Meneruskan PromptValue ke LLM
          
          # 4. Bangun chain (Prompt -> LLM -> Parser)
-         chain = prompt | RunnableLambda(print_prompt_and_pass) | self.main_llm.with_config({"tags": [self.name]}) | self.json_parser
+         chain = prompt | RunnableLambda(print_prompt_and_pass) | self.main_llm.with_config({"tags": [self.name]}) | self.json_parser.with_config({"tags": [self.name]})
          
          return chain
          
@@ -284,7 +288,7 @@ Code Component:
          
          # Untuk simpen process perlu component id
          self.current_component_id = state["component"].id
-         print("[Writer]: Run - Generating docstring ...")
+         logger.info_print("Run - Generating docstring ...")
 
          # Pastikan chain sudah di-setup
          if not self.full_writer_chain:
@@ -320,8 +324,8 @@ Code Component:
             
          except (OutputParserException, Exception) as e: 
             # Kegagalan Total (Setelah 2 upaya gagal)
-            print(f"[CRITICAL FAILURE]: Writer Agent failed after all retries. Error: {str(e)}")
-            print(traceback.format_exc())
+            logger.error_print(f"[CRITICAL FAILURE]: Writer Agent failed after all retries. Error: {str(e)}")
+            logger.error_print(traceback.format_exc())
             
             # FINAL FALLBACK (Poin 4: Gagal)
             # Kita menggunakan string kesalahan sebagai formatted_documentation
@@ -339,7 +343,14 @@ Code Component:
 
          return state
 
-
+# # VERSION 01 EXMPLE PROMPT 
+# -   **`examples`**: (Sangat dianjurkan) Tulis contoh kode singkat dalam format **doctest** (dimulai dengan `>>> `).
+#     -   **ATURAN KETAT**: Fokus untuk **mengilustrasikan penggunaan**, BUKAN untuk *testing*. Contoh HARUS RINGKAS, JELAS, dan FAKTUAL.
+#     -   **ANTI-HALUSINASI**: **Lebih baik mengembalikan `null` ** daripada mengarang (berhalusinasi) skenario yang tidak faktual atau tidak jelas.
+#     -   **FOKUS KONTEN**: Tunjukkan **Skenario Praktis**, **Kombinasi Parameter** umum, atau (jika relevan) pemanggilan yang memicu **Exception**.
+#     -   **ATURAN FORMAT (WAJIB):**
+#         1.  Jika ada **beberapa** contoh, pisahkan dengan **baris kosong**.
+#         2.  Sangat dianjurkan untuk menyertakan **komentar ringkas dan to-the-point** (diawali `#`) di atas setiap contoh untuk menjelaskannya.
 
 # VERSION V1 FORMATING NUMPY OUTPUT
 # Ganti implementasi get_formatted_documentation Anda:

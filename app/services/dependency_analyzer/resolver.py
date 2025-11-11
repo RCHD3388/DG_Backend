@@ -480,15 +480,69 @@ class PrimaryDependencyResolver(DependencyResolver):
     """
     Resolves dependencies using an alternative, perhaps faster or simpler, method.
     """
-    def resolve(self, relevant_files: List[Path]) -> None:
-        print("\nResolving dependencies using an primary method...")
+    def _filter_safe_files(self, all_files: List[Path]) -> List[Path]:
+        """
+        Menjalankan pycg pada setiap file satu per satu dengan timeout 30 detik
+        untuk menyaring file yang menyebabkan hang atau crash.
+        """
+        
+        safe_files: List[Path] = []
+        bad_files: List[Path] = []
+        
+        # Siapkan environment sekali saja
+        clean_env = os.environ.copy()
+        clean_env.pop("PYTHONPATH", None)
 
+        for file_path in all_files:
+            file_name = os.path.basename(file_path)
+
+            # Perintah untuk mengecek SATU file
+            # Kita tidak butuh output-nya, jadi kita tidak pakai '--output'
+            check_command = [
+                settings.PYCG_PYTHON_EXECUTABLE,
+                "-m", "pycg",
+                str(file_path),  # <-- Hanya SATU file
+                "--package", str(self.repo_path)
+            ]
+            
+            try:
+                subprocess.run(
+                    check_command,
+                    env=clean_env,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=20  
+                )
+                
+                safe_files.append(file_path)
+
+            except subprocess.TimeoutExpired:
+                bad_files.append(file_path)
+                logger.warning_print(f"File diabaikan (Timeout): {file_name}")
+
+            except subprocess.CalledProcessError as e:
+                bad_files.append(file_path)
+                logger.warning_print(f"File diabaikan (Crash): {file_name} | Error: {e.stderr[:100]}...")
+                
+            except FileNotFoundError:
+                logger.error_print(f"PyCG executable not found at '{settings.PYCG_PYTHON_EXECUTABLE}'.")
+                raise
+
+        logger.info_print(f"--- Pengecekan Selesai: {len(safe_files)} AMAN, {len(bad_files)} GAGAL ---")
+        return safe_files
+    
+    def resolve(self, relevant_files: List[Path]) -> None:
+        logger.info_print("\nResolving dependencies using an primary method...")
+
+        safe_files = self._filter_safe_files(relevant_files)
+        
         entry_points = [
-            str(p) for p in relevant_files
+            str(p) for p in safe_files
         ]
 
         if not entry_points:
-            print(f"[DependencyResolver] No Python files found to analyze in {self.repo_path} after filtering.")
+            logger.error_print(f"[DependencyResolver] No Python files found to analyze in {self.repo_path} after filtering.")
             return
 
         output_json_path = PYCG_OUTPUT_DIR / f"{self.task_id}.json"
@@ -993,7 +1047,7 @@ class PrimaryDependencyResolver(DependencyResolver):
                 source = f.read()
             entry_tree = ast.parse(source, filename=entry_file_path)
         except Exception as e:
-            print(f"Error parsing entry file {entry_file_path}: {e}")
+            logger.info_print(f"Error parsing entry file {entry_file_path}: {e}")
             return None
 
         # (match_length, start_file, symbol_to_trace)

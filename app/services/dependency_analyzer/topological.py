@@ -2,6 +2,9 @@ from typing import Dict, Set, Any, List
 import networkx as nx
 import json
 from app.core.config import DEPENDENCY_GRAPHS_DIR
+from app.utils.CustomLogger import CustomLogger
+
+logger = CustomLogger("Topological")
 
 def get_topological_sort_from_dependencies(DG: nx.DiGraph) -> List[str]:
         
@@ -39,7 +42,7 @@ def get_topological_sort_from_dependencies(DG: nx.DiGraph) -> List[str]:
         return final_processing_queue
     except nx.NetworkXUnfeasible:
         # Ini terjadi jika ada siklus dependensi (misal: A -> B -> A)
-        print("[TopoSort] Error: A cyclic dependency was detected in the graph.")
+        logger.error_print("[TopoSort] Error: A cyclic dependency was detected in the graph.")
         # Anda bisa menangani ini dengan cara lain, misal mengembalikan list kosong
         return []
 

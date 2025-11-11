@@ -14,6 +14,9 @@ from app.schemas.response.file_schema import FileMetadata
 from app.core.exceptions import FileNotFound, FileOperationError, InvalidFileNameError
 # Import utilitas yang sudah Anda miliki
 from app.utils.file_utils import clear_directory_contents
+from app.utils.CustomLogger import CustomLogger
+
+logger = CustomLogger("FileService")
 
 class FileService:
     """
@@ -61,7 +64,7 @@ class FileService:
         tasks = []
         for file in files:
             if not file.filename or not self._is_secure_filename(file.filename):
-                print(f"Skipping invalid or insecure file: {file.filename}")
+                logger.info_print(f"Skipping invalid or insecure file: {file.filename}")
                 continue
                 
             file_location = self.upload_dir / file.filename
@@ -97,7 +100,7 @@ class FileService:
                     )
                 except Exception as e:
                     # Log error tapi tetap lanjut
-                    print(f"Warning: Failed to get info for file '{file_path.name}': {e}")
+                    logger.info_print(f"Warning: Failed to get info for file '{file_path.name}': {e}")
         return file_list
 
     async def get_all_uploaded_files(self) -> List[FileMetadata]:
@@ -139,7 +142,7 @@ class FileService:
         [SINKRON] Worker untuk membersihkan direktori.
         """
         if not dir_path.exists():
-            print(f"Directory {dir_path} not found, nothing to clear.")
+            logger.error_print(f"Directory {dir_path} not found, nothing to clear.")
             return 0
         # Menggunakan utilitas 'clear_directory_contents' yang Anda sediakan
         return clear_directory_contents(dir_path)
@@ -149,6 +152,6 @@ class FileService:
         [ASINKRON] Membersihkan direktori extracted_projects.
         """
         if not self.extracted_dir.exists():
-             print(f"Directory {self.extracted_dir.name} not found, nothing to clear.")
+             logger.error_print(f"Directory {self.extracted_dir.name} not found, nothing to clear.")
              return 0
         return await asyncio.to_thread(self._clear_dir_sync, self.extracted_dir)

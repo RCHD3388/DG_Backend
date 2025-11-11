@@ -3,6 +3,9 @@ from graphviz import Digraph
 import os
 from pathlib import Path
 from app.schemas.models.code_component_schema import CodeComponent
+from app.utils.CustomLogger import CustomLogger
+
+logger = CustomLogger("GraphVis")
 
 # Ganti '...' dengan path yang benar ke skema Anda
 # from ..schemas.models.code_component_schema import CodeComponent 
@@ -27,7 +30,7 @@ class GraphVisualizer:
         else :
             self.components: Dict[str, CodeComponent] = {}
             
-        print(f"GraphVisualizer diinisialisasi dengan {len(self.components)} komponen.")
+        logger.info_print(f"GraphVisualizer diinisialisasi dengan {len(self.components)} komponen.")
 
     def _create_base_digraph(self) -> Digraph:
         """
@@ -92,7 +95,7 @@ class GraphVisualizer:
         """
         focal_component = self.components.get(component_id)
         if not focal_component:
-            print(f"Peringatan: Komponen '{component_id}' tidak ditemukan dalam data yang dimuat.")
+            logger.info_print(f"Peringatan: Komponen '{component_id}' tidak ditemukan dalam data yang dimuat.")
             return None
 
         # Mengakses atribut langsung dari objek CodeComponent
@@ -131,10 +134,10 @@ class GraphVisualizer:
         
         try:
             rendered_path = dot.render(str(output_path_obj), format='png', view=False, cleanup=True)
-            # print(f"Graf untuk '{component_id}' berhasil disimpan di: {rendered_path}")
+            # logger.info_print(f"Graf untuk '{component_id}' berhasil disimpan di: {rendered_path}")
             return rendered_path
         except Exception as e:
-            print(f"Gagal me-render graf untuk '{component_id}'. Pastikan Graphviz terinstal. Error: {e}")
+            logger.info_print(f"Gagal me-render graf untuk '{component_id}'. Pastikan Graphviz terinstal. Error: {e}")
             return None
 
     def generate_all_graphs(self, output_dir: Path) -> Tuple[int, int, List[str]]:
@@ -148,7 +151,7 @@ class GraphVisualizer:
             Tuple[int, int]: Jumlah graf yang berhasil dibuat dan jumlah yang dilewati.
         """
         output_dir.mkdir(parents=True, exist_ok=True)
-        print(f"\nMemulai pembuatan graf untuk {len(self.components)} komponen...")
+        logger.info_print(f"\nMemulai pembuatan graf untuk {len(self.components)} komponen...")
         
         success_count = 0
         skipped_count = 0
@@ -163,7 +166,7 @@ class GraphVisualizer:
             else:
                 skipped_count += 1
         
-        print("\n--- Proses Selesai ---")
-        print(f"Berhasil membuat {success_count} file graf.")
-        print(f"Melewatkan {skipped_count} komponen karena tidak memiliki dependensi.")
+        logger.info_print("\n--- Proses Selesai ---")
+        logger.info_print(f"Berhasil membuat {success_count} file graf.")
+        logger.info_print(f"Melewatkan {skipped_count} komponen karena tidak memiliki dependensi.")
         return success_count, skipped_count, processed_component_ids

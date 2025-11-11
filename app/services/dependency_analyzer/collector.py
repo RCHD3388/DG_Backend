@@ -68,8 +68,8 @@ class DependencyCollector(ast.NodeVisitor):
         # Track local variables as aliases
         self.local_aliases = {}
 
-        print(f"Imports: {self.imports}")
-        print(f"Wildcard Symbols: {self.wildcard_symbols}\n")
+        # print(f"Imports: {self.imports}")
+        # print(f"Wildcard Symbols: {self.wildcard_symbols}\n")
 
     def _solve_wildcard_symbol(self, wildcard_modules):
         self._change_to_target_path_path(self.repo_path)

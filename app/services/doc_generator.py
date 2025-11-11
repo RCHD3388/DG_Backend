@@ -61,7 +61,7 @@ def get_component_from_file(filepath: str):
             return data_python
             
     except json.JSONDecodeError as e:
-        print(f"Error decoding JSON di file '{filepath}': {e}")
+        logger.error_print(f"Error decoding JSON di file '{filepath}': {e}")
         return {}
 
 def generate_documentation_for_component(component: CodeComponent, orchestrator: Orchestrator) -> Any:
@@ -95,7 +95,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         current_repo_path = extract_zip(source_file_path, project_extract_path)
         root_module_name = get_project_root_name(current_repo_path)
 
-        print(f"[{task_id}] File extracted")
+        logger.info_print(f"[{task_id}] File extracted")
         
         # 1.1 Check root folder exist
         project_root_folder = current_repo_path
@@ -127,7 +127,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         }
         await redis_client.hset(f"task:{task_id}", mapping=files_update)
         
-        print(f"[{task_id}] Parsing repository at {project_extract_path}")
+        logger.info_print(f"[{task_id}] Parsing repository at {project_extract_path}")
         parser = DependencyParser(current_repo_path, project_root_folder, task_id, root_module_name)
         
         relevant_files = parser.get_relevant_files()
@@ -161,7 +161,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         sorted_components = get_topological_sort_from_dependencies(diGraph)
         # print(sorted_components)
 
-        # --- DOCUMENT GENERATION ---
+        # 5. --- DOCUMENT GENERATION ---
         internalCodeParser = InternalCodeParser(
             repo_path=current_repo_path, 
             components=components, 
@@ -169,26 +169,22 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
             pagerank_scores=pagerank_scores
         )
         
-        # Limited component_id
-        # limited_component = [ "core.memory.short_term.ShortTermMemory._evict_lru", 
-        #     "core.memory.long_term.LongTermMemory",
-        #     "core.memory.long_term.LongTermMemory._save_item",
-        #     "core.planning.task_planner.TaskPlanner.replan"
-        #     ]
         # Limit Counter
-        batch_process_limit = 1
-        batch_process_counter = 0
+        # batch_process_limit = 1
+        # batch_process_counter = 0
         
         # Orchestrator loop - Create documentation
+        # 6. LOOP PROCESS GENERATE
         orchestrator = Orchestrator(repo_path=current_repo_path, config_path=config_file_path, internalCodeParser=internalCodeParser)
         for component_id in sorted_components:
             
-            if batch_process_counter >= batch_process_limit:
-                break
-            batch_process_counter += 1
+            # if batch_process_counter >= batch_process_limit:
+            #     break
+            # batch_process_counter += 1
             
             # Get component & Check if exists
             component = components[component_id]
+            logger.info_print("")
             if not component:
                 logger.error_print(f"[{task_id}] Component {component_id} not found in components dictionary.")
                 continue
@@ -214,8 +210,10 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         graph_visualization_result_output = GRAPH_VISUALIZATION_DIRECTORY / task_id
         success_count, skipped_count, successful_rendered_component_ids = graph_visualizer.generate_all_graphs(graph_visualization_result_output)
         
+        # 7. ADD GRAPH VISUALIZER
         parser.add_component_dependency_graph_urls(successful_rendered_component_ids, task_id)
         
+        # 8. SAVE DATABASE
         parser.save_record_to_database(record_code=task_id, metadata=metadata, name=analyze_name)
         
         # --- COMPLETED ---
@@ -229,7 +227,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
 
     except Exception as e:
         # --- Tangani Error ---
-        print(f"[{task_id}] TERJADI ERROR: {e}")
+        logger.error_print(f"[{task_id}] TERJADI ERROR: {e}")
         logger.error_print(traceback.format_exc())
         await redis_client.hset(f"task:{task_id}", mapping={
             "status": TaskStatus.FAILED.value, 

@@ -8,6 +8,9 @@ from .state import AgentState
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, BaseMessage
 
+from app.utils.CustomLogger import CustomLogger
+
+logger = CustomLogger("BaseAgent")
 
 class OrchestratorBase(ABC):
   def __init__(self, name):
@@ -30,7 +33,7 @@ class BaseAgent(ABC):
         if not llm_config:
             raise ValueError(f"Konfigurasi LLM Kosong : {self.name} Agent")
         
-        print(f"{self.name} LLM Config: {llm_config.get('model')} ({llm_config.get("api_key")})")
+        logger.info_print(f"{self.name} LLM Config: {llm_config.get('model')} ({llm_config.get("api_key")})")
 
         return LLMFactory.create_llm(llm_config)
     

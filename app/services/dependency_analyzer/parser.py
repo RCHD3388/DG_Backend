@@ -8,7 +8,7 @@ from pathlib import Path
 import networkx as nx
 from dataclasses import dataclass, field
 
-from .resolver import DependencyResolver, PrimaryDependencyResolver, AlternativeDependencyResolver
+from app.services.dependency_analyzer.resolver import DependencyResolver, PrimaryDependencyResolver, AlternativeDependencyResolver
 from app.schemas.models.code_component_schema import CodeComponent, ResolverStrategy
 from app.utils.dependency_analyzer_utils import file_to_module_path, add_parent_to_nodes
 from app.services.dependency_analyzer.collector import DependencyCollector, ImportCollector
@@ -417,13 +417,26 @@ class DependencyParser:
     def add_component_generated_doc(self, component_id: str, docgen_final_state: Dict[str, Any]):
         """Add or update the generated documentation for a specific component."""
         if component_id in self.components:
+            # get final state
+            final_state = docgen_final_state.get("final_state", {})
+            doc_json_object = final_state.get("documentation_json")
+            
+            docstring_context_string = None # Ini akan menjadi JSON string TANPA 'examples'
+            documentation_json_dict = None
+            
+            if doc_json_object:
+                # Untuk docstring
+                doc_dict_no_examples = doc_json_object.model_dump(exclude={'examples'})
+                docstring_context_string = json.dumps(doc_dict_no_examples)
+                # Untuk documentation_json
+                documentation_json_dict = doc_json_object.model_dump()
             
             self.components[component_id].docgen_final_state = {
                 "final_state": {
-                    "docstring": docgen_final_state.get("final_state", {}).get("docstring", ""),
-                    "reader_search_attempts": docgen_final_state.get("final_state", {}).get("reader_search_attempts", ""),
-                    "verifier_rejection_count": docgen_final_state.get("final_state", {}).get("verifier_rejection_count", ""),
-                    "documentation_json": docgen_final_state.get("final_state", {}).get("documentation_json", {}).model_dump(),
+                    "docstring": docstring_context_string or "",
+                    "reader_search_attempts": final_state.get("reader_search_attempts", 0),
+                    "verifier_rejection_count": final_state.get("verifier_rejection_count", 0),
+                    "documentation_json": documentation_json_dict or {},
                 },
                 "usage_stats": docgen_final_state.get("usage_stats", {})
             }

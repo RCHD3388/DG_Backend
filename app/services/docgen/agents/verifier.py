@@ -15,7 +15,9 @@ from app.services.docgen.state import AgentState
 from app.services.docgen.agents.agent_output_schema import NumpyDocstring, SingleCallVerificationReport
 from app.schemas.models.code_component_schema import CodeComponent
 
+from app.utils.CustomLogger import CustomLogger
 
+logger = CustomLogger("Verifier")
     
 class StaticVerifier:
     """
@@ -158,16 +160,29 @@ class Verifier(BaseAgent):
 Anda adalah 'Verifier Dokumentasi' AI yang sangat teliti, kritis, dan jujur.
 Tugas Anda adalah membandingkan KODE ASLI dengan DOKUMENTASI YANG DIHASILKAN.
 Anda HARUS mengevaluasi setiap bagian satu per satu dan memberikan kritik (critique) yang jujur.
-Jangan malas. Fokus utama Anda adalah menemukan HALUSINASI atau KETIDAKAKURATAN.
+Jangan malas. Fokus utama Anda adalah menemukan HALUSINASI atau KETIDAKAKURATAN PADA DESKRIPSI DOKUMENTASI.
 
-Selain akurasi faktual, Anda juga HARUS memverifikasi bahwa semua teks deskriptif mematuhi Aturan Penulisan berikut:
+**LARANGAN KERAS (WAJIB DITAATI): PERAN ANDA**
+
+1.  **Tugas Anda adalah Analis KUALITAS KONTEN, bukan Analis AKURASI TEKNIS.**
+2.  **StaticVerifier (sistem lain) SUDAH memvalidasi akurasi teknis.** Ini berarti `name`, `type`, `error`, dan `warning` dianggap sudah 100% akurat.
+3.  Oleh karena itu, Anda **DILARANG KERAS** untuk:
+    -   Mengevaluasi apakah *field* `name`, `type`, `error`, atau `warning` salah tulis, tidak identik, atau hilang.
+    -   Memberikan kritik atau saran yang bertujuan mengubah *field* `name`, `type`, `error`, atau `warning`.
+4.  Fokus Anda **HANYA** pada:
+    -   **KUALITAS DESKRIPSI:** (Apakah `description` faktual, mendalam, dan mencakup `Signifikansi`, `Batasan`, dll.?)
+    -   **KUALITAS KONTEN:** (Apakah `summary` akurat? Apakah `examples` halusinasi?)
+    -   **ATURAN GAYA:** (Apakah `Present Tense` dan `Active Voice` digunakan? dan lainnya yang akan dijelaskan dibawah)
+
+
+Selain akurasi faktual dari deskripsi dokumentasi, Anda juga HARUS memverifikasi bahwa semua teks deskriptif mematuhi Aturan Penulisan berikut:
 
 **TECHNICAL WRITING DIRECTIVES (ATURAN GAYA):**
 1.  **Bahasa**: Penjelasan yang diberikan harus dalam bahasa Indonesia, kecuali istilah atau hal teknis maka dapat menggunakan bahasa Inggris.
-1.  **Gunakan Present Tense:** harus menggunakan **Present Tense** (Bentuk Waktu Sekarang Sederhana). 
-2.  **Gunakan Active Voice:** Prioritaskan **Active Voice** (Kalimat Aktif).
-3.  **Timeless:** HINDARI frasa yang terikat waktu (misalnya: "saat ini", "sekarang").
-4.  **Jelas & Ringkas:** Konten HARUS jelas, padat, dan tidak ambigu.
+2.  **Gunakan Present Tense:** harus menggunakan **Present Tense** (Bentuk Waktu Sekarang Sederhana). 
+3.  **Gunakan Active Voice:** Prioritaskan **Active Voice** (Kalimat Aktif).
+4.  **Timeless:** HINDARI frasa yang terikat waktu (misalnya: "saat ini", "sekarang").
+5.  **Jelas & Ringkas:** Konten HARUS jelas, padat, dan tidak ambigu.
 
 Output Anda HARUS berupa JSON yang valid sesuai skema yang diberikan.
 """
@@ -207,7 +222,7 @@ Sekarang, berdasarkan 'critiques' Anda di TUGAS 1, buat keputusan akhir:
     -   Jika "writer", jelaskan secara ringkas apa yang harus DIPERBAIKI oleh Writer.
     -   Jika "reader", jelaskan secara spesifik KONTEKS APA yang harus DICARI oleh Reader.
 
-Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari TUGAS 1) dan 'suggested_next_step' serta 'suggestion_feedback' (dari TUGAS 2).
+HASILKAN : objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari TUGAS 1) dan 'suggested_next_step' serta 'suggestion_feedback' (dari TUGAS 2).
 """
         # 2. Tambahkan string ceklis dinamis
         self._verifier_checklist_function: str = """
@@ -219,9 +234,9 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
 6.  **raises**: (PENTING) Evaluasi deskripsi error: Apakah sudah mencakup penjelasan **Kondisi Spesifik** yang baik?
 7.  **warns**: (PENTING) Evaluasi deskripsi warning: Apakah sudah mencakup penjelasan **Kondisi Spesifik** yang baik?
 8.  **examples**: (PENTING) Apakah contoh kode ini *halusinasi*? Apakah tipe data di contoh cocok dengan signatur fungsi di kode?
+10. **ATURAN GAYA (PENTING)**: Apakah SEMUA teks deskriptif (di `description`, `summary`, dll.) sudah mematuhi **TECHNICAL WRITING DIRECTIVES** (Present Tense, Active Voice, Jelas, Timeless)?
 
-**Akurasi Data** (Penting) : 
-- Apakah SEMUA *field* `name`, `type`, `error`, dan `warning` di JSON sudah mematuhi **ATURAN AKURASI DATA** (100% Identik dengan yang dituliskan secara EKSPLISIT, dan `type` WAJIB diisi *string* `"None"` jika tidak dituliskan secara eksplisit)?.
+Patuhi **semua** `LARANGAN KERAS` dan pesan dari System Prompt Anda saat melakukan evaluasi ini.
 """
         self._verifier_checklist_class: str = """
 1.  **short_summary**: Apakah summary ini secara akurat (berdasarkan kode dan konteks) mendeskripsikan FUNGSI UTAMA kode?
@@ -229,9 +244,9 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
 3.  **parameters** (dari `__init__`): (PENTING) Evaluasi deskripsi parameter constructor: Apakah sudah mencakup **Signifikansi** (pengaruhnya pada instance), **Batasan** (nilai valid), dan **Relasi** antar parameter?
 4.  **attributes**: (PENTING) Evaluasi deskripsi atribut: Apakah sudah mencakup **Tujuan/Signifikansi**, **Tipe/Nilai** yang valid, dan **Dependensi** antar atribut?
 5.  **examples**: (PENTING) Apakah contoh kode ini *halusinasi*? Apakah inisialisasi dan pemanggilan metodenya logis berdasarkan kode?
+6.  **ATURAN GAYA (PENTING)**: Apakah SEMUA teks deskriptif (di `description`, `summary`, dll.) sudah mematuhi **TECHNICAL WRITING DIRECTIVES** (Present Tense, Active Voice, Jelas, Timeless)?
 
-**Akurasi Data** (Penting) : 
-- Apakah SEMUA *field* `name`, `type`, `error`, dan `warning` di JSON sudah mematuhi **ATURAN AKURASI DATA** (100% Identik dengan yang dituliskan secara EKSPLISIT, dan `type` WAJIB diisi *string* `"None"` jika tidak dituliskan secara eksplisit)?.
+Patuhi **semua** `LARANGAN KERAS` dan pesan dari System Prompt Anda saat melakukan evaluasi ini.
 """
 
         # 3.3. Inisialisasi Chain LLM (LCEL)
@@ -250,7 +265,7 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
         ]).partial(format_instructions=format_instructions)
         
         # Asumsi self.llm ada dari BaseAgent
-        chain = prompt | self.llm.with_config({"tags": [self.name]}) | self.verifier_parser
+        chain = prompt | self.llm.with_config({"tags": [self.name]}) | self.verifier_parser.with_config({"tags": [self.name]})
         return chain
 
     def _parse_llm_report(self, report: SingleCallVerificationReport) -> Tuple[List[str], str]:
@@ -349,7 +364,7 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
         """
         Menjalankan proses verifikasi hibrida (Statis + LLM).
         """
-        print("[Verifier]: Run - Verifying generated docstring ...")
+        logger.info_print(" Run - Verifying generated docstring ...")
 
         component: CodeComponent = state["component"]
         doc_json: Optional[NumpyDocstring] = state.get("documentation_json")
@@ -357,7 +372,7 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
         context: str = state.get("context", "Tidak ada konteks yang diberikan.")
 
         if not doc_json:
-            print("[Verifier]: WARNING: Tidak ada documentation_json untuk diverifikasi. Melewatkan.")
+            logger.info_print(" WARNING: Tidak ada documentation_json untuk diverifikasi. Melewatkan.")
             state["verification_result"] = {
                 "formatted": {
                     'needs_revision': True,
@@ -370,11 +385,11 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
             return state
 
         # --- LANGKAH 1: VERIFIKASI STATIS (GRATIS) ---
-        print("[Verifier]: Running Static AST Verification...")
+        logger.info_print(" Running Static AST Verification...")
         static_findings = self.static_verifier.verify(component, doc_json)
         
         # --- LANGKAH 2: VERIFIKASI LLM (BERBAYAR) ---
-        print("[Verifier]: Running LLM Semantic Verification...")
+        logger.info_print(" Running LLM Semantic Verification...")
         if component.component_type.lower() == "class":
             dynamic_checklist = self._verifier_checklist_class
         else:
@@ -395,13 +410,13 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
             llm_findings, llm_step_suggestion = self._parse_llm_report(llm_report)
             
         except Exception as e:
-            print(f"[Verifier]: CRITICAL: LLM Verifier chain failed! Error: {e}")
+            logger.info_print(f"CRITICAL: LLM Verifier chain failed! Error: {e}")
             llm_findings = [f"[LLM - ERROR]: Panggilan Verifier LLM gagal: {e}"]
             llm_report = None
             llm_step_suggestion = "writer" # Default ke writer jika verifier gagal
 
         # --- LANGKAH 3: GABUNGKAN HASIL & BUAT KEPUTUSAN ---
-        print("[Verifier]: Consolidating feedback...")
+        logger.info_print(" Consolidating feedback...")
         
         # --- LOGIKA KEPUTUSAN BARU ---
         all_findings = static_findings + llm_findings
@@ -431,9 +446,9 @@ Hasilkan objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (dari
         }
         
         if needs_revision:
-            print(f"[Verifier]: FAILED. {len(all_findings)} issues found. Suggesting: {suggested_next_step}")
+            logger.info_print(f"FAILED. {len(all_findings)} issues found. Suggesting: {suggested_next_step}")
         else:
-            print("[Verifier]: PASSED. No issues found.")
+            logger.info_print(" PASSED. No issues found.")
 
         return state
 

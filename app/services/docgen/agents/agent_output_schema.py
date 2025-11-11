@@ -107,7 +107,7 @@ class SectionCritique(BaseModel):
 
 class SingleCallVerificationReport(BaseModel):
     """Laporan verifikasi lengkap dari satu panggilan LLM."""
-    critiques: List[SectionCritique] = Field(..., description="Daftar kritik untuk setiap bagian utama docstring.")
+    critiques: List[SectionCritique] = Field(..., description="Daftar kritik untuk setiap bagian utama dokumentasi.")
     
     # --- PERUBAHAN DIMULAI DI SINI ---
     suggested_next_step: Literal["finished", "writer", "reader"] = Field(...,

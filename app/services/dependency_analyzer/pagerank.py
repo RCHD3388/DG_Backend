@@ -1,6 +1,9 @@
 from typing import Dict, Set, Any, List, Tuple
 import numpy as np
 import networkx as nx
+from app.utils.CustomLogger import CustomLogger
+
+logger = CustomLogger("Pagerank")
 
 def customize_pagerank_processing(
     DG: nx.DiGraph, 
@@ -48,14 +51,14 @@ def customize_pagerank_processing(
         err = np.linalg.norm(x - xlast, ord=1) # Menggunakan Norma L1 untuk mengukur perubahan
         
         if err < tol:
-            print(f"🎉 **Analisis Selesai:** Konvergensi tercapai pada iterasi ke-{i + 1}.")
-            print(f"Perubahan Skor (Toleransi): {err:.8f}")
+            logger.info_print(f"🎉 **Analisis Selesai:** Konvergensi tercapai pada iterasi ke-{i + 1}.")
+            logger.info_print(f"Perubahan Skor (Toleransi): {err:.8f}")
             
             # Mengembalikan hasil akhir (final_scores), total iterasi, dan riwayat
             return current_scores_dict, i + 1, history
 
     # Jika loop selesai tanpa konvergensi (mencapai max_iter)
-    print(f"⚠️ **Peringatan:** Algoritma mencapai max_iter ({max_iter}) tanpa konvergensi.")
+    logger.warning_print(f"⚠️ **Peringatan:** Algoritma mencapai max_iter ({max_iter}) tanpa konvergensi.")
     return current_scores_dict, max_iter, history
 
 def get_pagerank_scores(DG: nx.DiGraph) -> Dict[str, float]:

@@ -2,11 +2,12 @@
 
 from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 import traceback
 
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_core.globals import set_debug 
 
 from ..base import BaseAgent
@@ -17,6 +18,11 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.runnables import Runnable
 from app.services.docgen.agents.agent_output_schema import ReaderOutput
+from app.utils.file_utils import save_docgen_component_process
+from app.core.config import DUMMY_TESTING_DIRECTORY
+from app.utils.CustomLogger import CustomLogger
+
+logger = CustomLogger("Reader")
 # ==============================================================================
 # 2. IMPLEMENTASI AGEN READER (BARU)
 # ==============================================================================
@@ -74,10 +80,10 @@ Your ENTIRE output MUST be a single, valid JSON object strictly adhering to the 
    - If used, provide concise, clear, natural language search queries.
 
 **DECISION LOGIC (`info_need`):**
-- Set `info_need` to `false` if the current context and code are sufficient to write a good docstring.
+- Set `info_need` to `false` if the current context and code are sufficient to write a good documentation.
 - Set `info_need` to `true` if you need to request more context using `internal_expand` or `external_retrieval`.
 
-IMPORTANT: Your job is NOT to write the docstring, only to determine if information gathering is complete. Focus on necessity. Often, no extra info is needed.
+IMPORTANT: Your job is NOT to write the documentation/docstring, only to determine if information gathering is complete. Focus on necessity. Often, no extra info is needed.
 """
         # 2.3. Definisi Template Pesan Human (akan dibuat di _build_human_prompt)
         # Kita tidak mendefinisikannya di sini lagi
@@ -96,7 +102,19 @@ IMPORTANT: Your job is NOT to write the docstring, only to determine if informat
             MessagesPlaceholder(variable_name="chat_history")
         ]).partial(format_instructions=format_instructions)
         
-        chain = prompt | self.llm.with_config({"tags": [self.name]}) | self.json_parser
+        def print_prompt_and_pass(prompt_value):
+            """Mengambil PromptValue, mencetaknya, dan meneruskannya."""
+            folder_path = DUMMY_TESTING_DIRECTORY / f"component_{self.current_component_id}" if self.current_component_id else DUMMY_TESTING_DIRECTORY
+            
+            save_docgen_component_process(
+                file_path= folder_path / f"Reader_Prompt_{len(self.memory)}_{datetime.now().strftime("%H_%M_%S")}.txt",
+                content = prompt_value.to_string(),
+                type = "json"
+            )
+            
+            return prompt_value # PENTING: Meneruskan PromptValue ke LLM
+        
+        chain = prompt | RunnableLambda(print_prompt_and_pass) | self.llm.with_config({"tags": [self.name]}) | self.json_parser.with_config({"tags": [self.name]})
         return chain
 
     def _build_human_prompt(self, state: AgentState) -> str:
@@ -125,7 +143,8 @@ Analyze the component and context. Decide if more information is needed via EXPA
         """
         Menganalisa kode menggunakan LCEL chain dan output JSON.
         """
-        print(f"[Reader]: Run - Analysing component to determine info needs...")
+        logger.info_print(f"Run - Analysing component to determine info needs...")
+        self.current_component_id = state["component"].id
         
         if not self.llm_chain:
             self.llm_chain = self._setup_reader_chain()
@@ -153,8 +172,8 @@ Analyze the component and context. Decide if more information is needed via EXPA
             self.add_to_memory("assistant", parsed_output.model_dump_json())
 
         except Exception as e: # Tangkap SEMUA exception (LLM error, Parsing Error)
-            print(f"[Reader]: CRITICAL: LLM Reader chain failed! Error: {e}")
-            print(traceback.format_exc())
+            logger.error_print(f"CRITICAL: LLM Reader chain failed! Error: {e}")
+            logger.error_print(traceback.format_exc())
 
             # 6. Buat output default saat GAGAL
             parsed_output = ReaderOutput(info_need=False) # Default: anggap tidak perlu info
