@@ -89,7 +89,7 @@ class ReaderOutput(BaseModel):
     
     internal_expand: Optional[List[str]] = Field(
         default=None, 
-        description="Daftar component ID internal yang perlu diexpand (jika info_need true). Kosongkan jika tidak ada."
+        description="Daftar component ID internal yang perlu diexpand (Misal, 'main.core.main_agent.Agent.get_log'). Kosongkan jika tidak ada."
     )
     
     external_retrieval: Optional[List[str]] = Field(

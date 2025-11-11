@@ -79,9 +79,15 @@ Your ENTIRE output MUST be a single, valid JSON object strictly adhering to the 
    - (Examples: Novel loss functions, specific niche metrics, very new research concepts).
    - If used, provide concise, clear, natural language search queries.
 
-**DECISION LOGIC (`info_need`):**
-- Set `info_need` to `false` if the current context and code are sufficient to write a good documentation.
-- Set `info_need` to `true` if you need to request more context using `internal_expand` or `external_retrieval`.
+Tentu. Berikut adalah revisi yang ringkas dan tegas untuk bagian `DECISION LOGIC` dalam Bahasa Inggris:
+
+**DECISION LOGIC (CRITICAL):**
+Your process MUST be as follows:
+1.  Analyze the code and context.
+2.  Decide if `internal_expand` or `external_retrieval` are needed per the `TOOL RULES`.
+3.  **Determine `info_need` LAST, based on your decision:**
+    -   **IF** `internal_expand` (has IDs) OR `external_retrieval` (has queries) **IS POPULATED**, you **MUST** set `info_need: true`.
+    -   **IF** `internal_expand` AND `external_retrieval` are BOTH **EMPTY** (or `null`), you **MUST** set `info_need: false`.
 
 IMPORTANT: Your job is NOT to write the documentation/docstring, only to determine if information gathering is complete. Focus on necessity. Often, no extra info is needed.
 """

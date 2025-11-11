@@ -90,6 +90,13 @@ class StaticVerifier:
         for err in missing_raises_in_doc:
             findings.append(f"[Static] Kode terlihat me-raise '{err}', tapi ini HILANG dari bagian 'Raises' di dokumentasi.")
             
+        hallucinated_raise_in_doc =  doc_raises - ast_raises
+        for err in hallucinated_raise_in_doc:
+            findings.append(f"[Static] Dokumentasi terlihat me-raise '{err}', tapi ini TIDAK ADA di bagian 'Raises' di kode.")
+        
+        if len(findings) > 0:
+            findings.append(f"[Static] (Info Penting) Pastikan penulisan WAJIB IDENTIK dan NYATA TERDAPAT PADA KODE yang sedang didokumentasikan.")
+                    
         return findings
 
     def _get_signature_truth(self, node: ast.AST) -> Tuple[Dict[str, Optional[str]], Optional[str]]:

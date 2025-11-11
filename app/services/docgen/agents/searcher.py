@@ -3,6 +3,7 @@
 from typing import Optional, Dict, List, Any, Tuple
 import re
 import json
+import time
 import tiktoken
 from dataclasses import dataclass, field
 import xml.etree.ElementTree as ET
@@ -280,7 +281,7 @@ class Searcher(BaseAgent):
         formatted_result = "\n\n".join(filter(None, context_parts))
         
         if not formatted_result or formatted_result != "":
-            formatted_result = "Tidak terdapat konteks yang cocok"
+            formatted_result = "Tidak terdapat konteks untuk komponen tersebut."
         return formatted_result
     
     def apply_context_policy(self, context_string: str, focal_component_code: str) -> Tuple[bool, int]:
@@ -431,6 +432,7 @@ class Searcher(BaseAgent):
             return state
         
         # 2. Gather external information
+        logger.info_print(f"Gathering external information ({len(parsed_request.external_retrieval)})...")
         external_results = {}
         for query in parsed_request.external_retrieval:
             if not query: continue
@@ -444,6 +446,7 @@ class Searcher(BaseAgent):
             response = self.llm.invoke(messages, config=config)
             
             external_results[query] = response.content.strip()
+            time.sleep(5)
 
         if external_results:
             

@@ -60,7 +60,7 @@ def get_component_from_file(filepath: str):
             data_python = json.load(file)
             return data_python
             
-    except json.JSONDecodeError as e:
+    except Exception as e:
         logger.error_print(f"Error decoding JSON di file '{filepath}': {e}")
         return {}
 

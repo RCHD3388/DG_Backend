@@ -147,20 +147,24 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
         3.  **KAPAN** (Scenarios): Kapan skenario atau kondisi ideal untuk menggunakan (membuat instance) kelas ini?
         
 -   **`parameters`**: (PENTING) Deteksi parameter dari constructor (`__init__`). 
-    -   Untuk setiap parameter, Anda HARUS menyediakan 'name', 'type', dan 'description'.
-    -   **ATURAN WAJIB (PENTING):**
-        1.  **`name`**: (WAJIB IDENTIK) Salin NAMA parameter **secara identik** dari signatur `__init__`. HARUS *case-sensitive* dan menyertakan awalan `*` atau `**` jika ada. (Abaikan `self`).
-        2.  **`type`**: (WAJIB IDENTIK) Salin TIPE DATA (type hint) **secara identik** dari signatur `__init__`. HARUS *case-sensitive* (misal: `Optional[str]`).
-        3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) yang ditulis secara eksplisit di signatur `__init__`, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
-        4.  **`default`**: (WAJIB IDENTIK) JIKA parameter memiliki nilai *default* yang **tertulis eksplisit** di signatur kode (misal: `param: int = 5`), Anda **WAJIB** mendeteksi nilai tersebut dan menempatkannya **secara identik** (misal: `5`, `'test'`, `True`, `[{"A": "B"}]`) di *field* `default`. Jika tidak ada *default* eksplisit, *field* ini HARUS `null`.
-    -   **ATURAN KONTEN:**
-        1.  **`description`**: (dalam Bahasa Indonesia) Deskripsi HARUS mendalam dan mencakup:
-            -  **Signifikansi**: Mengapa parameter ini penting untuk inisialisasi? Apa pengaruhnya terhadap *instance*?
-            -  **Batasan**: Apa rentang nilai yang valid atau *constraints* ?
-            -  **Relasi**: Apakah nilainya bergantung atau memengaruhi parameter lain saat inisialisasi?
+    -   **ATURAN UTAMA (PENTING):** Periksa apakah ada metode `def __init__(self, ...)` yang **tertulis secara eksplisit (manual)** di dalam kode kelas.
+        1.  **JIKA `__init__` MANUAL TIDAK DITEMUKAN:** (Misalnya, ini adalah `@dataclass` standar, `pydantic.BaseModel`, *class* kosong yang tidak memiliki `__init__`), Anda **WAJIB** menyetel *kunci* `parameters` di JSON utama menjadi `null`.
+        2.  **JIKA `__init__` MANUAL DITEMUKAN:** Anda **WAJIB** mendokumentasikan SEMUA parameter dari `__init__` manual tersebut di sini, dengan mengikuti "Aturan Wajib" dan "Aturan Konten" di bawah.
+            -   **ATURAN WAJIB (PENTING):**
+                1.  **`name`**: (WAJIB IDENTIK) Salin NAMA parameter **secara identik** dari signatur `__init__`. HARUS *case-sensitive* dan menyertakan awalan `*` atau `**` jika ada. (Abaikan `self`).
+                2.  **`type`**: (WAJIB IDENTIK) Salin TIPE DATA (type hint) **secara identik** dari signatur `__init__`. HARUS *case-sensitive* (misal: `Optional[str]`).
+                3.  **`type` (JIKA KOSONG)**: **JIKA TIDAK ADA TIPE DATA** (type hint) yang ditulis secara eksplisit di signatur `__init__`, Anda **WAJIB** mengisi *field* `type` dengan *string* `"None"`.
+                4.  **`default`**: (WAJIB IDENTIK) JIKA parameter memiliki nilai *default* yang **tertulis eksplisit** di signatur kode (misal: `param: int = 5`), Anda **WAJIB** mendeteksi nilai tersebut dan menempatkannya **secara identik** (misal: `5`, `'test'`, `True`, `[{"A": "B"}]`) di *field* `default`. Jika tidak ada *default* eksplisit, *field* ini HARUS `null`.
+            -   **ATURAN KONTEN:**
+                1.  **`description`**: (dalam Bahasa Indonesia) Deskripsi HARUS mendalam dan mencakup:
+                    -  **Signifikansi**: Mengapa parameter ini penting untuk inisialisasi? Apa pengaruhnya terhadap *instance*?
+                    -  **Batasan**: Apa rentang nilai yang valid atau *constraints* ?
+                    -  **Relasi**: Apakah nilainya bergantung atau memengaruhi parameter lain saat inisialisasi?
             
 -   **`attributes`**: (PENTING) Deteksi **atribut publik non-metode (non-method attributes)** yang relevan.
-    -   Ini biasanya adalah atribut yang didefinisikan di *class body* atau sebagai `self.nama_atribut` di dalam `__init__` yang terdapat pada komponen kode yang SEDANG didokumentasikan.
+    -    **ATURAN PENDETEKSIAN (PENTING):** Anda WAJIB mencari atribut di dua tempat utama:
+            1.  ***Field* Level Kelas:** Atribut yang didefinisikan langsung di *class body*. (Ini termasuk *field* dari `@dataclass`, `pydantic.BaseModel`, atau variabel kelas standar).
+            2.  ***Field* `__init__`:** Atribut yang didefinisikan di dalam `__init__` manual (misal: `self.nama_atribut = ...`).
     -   Untuk setiap atribut, Anda HARUS menyediakan 'name', 'type', dan 'description'.
     -   **ATURAN WAJIB (PENTING):**
         1.  **`name`**: (WAJIB IDENTIK) Tulis NAMA atribut **tanpa** awalan `self.` (misal: deteksi `self.my_attr`, tulis `my_attr`). HARUS *case-sensitive*.
