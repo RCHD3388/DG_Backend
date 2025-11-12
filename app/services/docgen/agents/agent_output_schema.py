@@ -101,7 +101,7 @@ class ReaderOutput(BaseModel):
 # VERIFIER AGENT OUTPUT
 class SectionCritique(BaseModel):
     """Kritik spesifik untuk satu bagian dari docstring."""
-    section: str = Field(..., description="Bagian yang dievaluasi, misal: 'parameters', 'examples', 'short_summary'.")
+    section: str = Field(..., description="Bagian yang dievaluasi, misal: 'parameters', 'examples', 'short_summary',...")
     is_accurate: bool = Field(..., description="Apakah bagian ini akurat secara semantik berdasarkan kode?")
     critique: str = Field(..., description="Kritik spesifik. Tulis 'Akurat.' jika lolos, atau jelaskan kesalahannya jika gagal.")
 

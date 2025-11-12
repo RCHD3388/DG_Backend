@@ -42,11 +42,11 @@ class StaticVerifier:
         # '**kwargs' -> 'kwargs'
         # '*args'    -> 'args'
         doc_params = {p.name.lstrip('*') for p in (doc.parameters or [])}
-
         doc_raises = {r.error for r in (doc.raises or [])}
         
         ast_params, ast_return_type = self._get_signature_truth(node)
         ast_raises = self._get_raises_truth(node)
+        ast_has_yield = self._get_yield_truth(node)
         
         # Normalisasi nama parameter AST juga
         ast_params_set = {name.lstrip('*') for name in ast_params.keys()}
@@ -57,7 +57,7 @@ class StaticVerifier:
         
         for param in missing_in_doc:
             if param != 'self': 
-                findings.append(f"[Static] Parameter '{param}' ada di kode tapi HILANG dari dokumentasi.")
+                findings.append(f"[Static] Parameter '{param}' ada di kode tapi HILANG atau TIDAK DIBERIKAN pada dokumentasi.")
         
         for param in hallucinated_in_doc:
             # Kita tampilkan nama asli dari docstring (dengan '**') agar jelas
@@ -88,11 +88,19 @@ class StaticVerifier:
         # --- Pemeriksaan 4: Raises ---
         missing_raises_in_doc = ast_raises - doc_raises
         for err in missing_raises_in_doc:
-            findings.append(f"[Static] Kode terlihat me-raise '{err}', tapi ini HILANG dari bagian 'Raises' di dokumentasi.")
+            findings.append(f"[Static] Kode terlihat me-raise '{err}', tapi ini HILANG / TIDAK DIBERIKAN pada bagian 'raises' di dokumentasi.")
             
         hallucinated_raise_in_doc =  doc_raises - ast_raises
         for err in hallucinated_raise_in_doc:
-            findings.append(f"[Static] Dokumentasi terlihat me-raise '{err}', tapi ini TIDAK ADA di bagian 'Raises' di kode.")
+            findings.append(f"[Static] Dokumentasi mencantumkan raises {err}, tapi *error* ini tidak ditemukan di-*raise* secara eksplisit di dalam kode (Halusinasi).")
+        
+        # --- Pemeriksaan 5: Yield ---
+        doc_has_yield = bool(doc.yields)
+        if ast_has_yield and not doc_has_yield:
+            findings.append("[Static] Kode ini adalah generator (menggunakan 'yield'), tapi HILANG / TIDAK DIBERIKAN pada bagian 'yields' di dokumentasi.")
+        
+        if not ast_has_yield and doc_has_yield:
+            findings.append("[Static] Dokumentasi mencantumkan 'yields', tapi kode tersebut bukan generator, tidak ditemukan 'yield' statement secara eksplisit (Halusinasi).")
         
         if len(findings) > 0:
             findings.append(f"[Static] (Info Penting) Pastikan penulisan WAJIB IDENTIK dan NYATA TERDAPAT PADA KODE yang sedang didokumentasikan.")
@@ -147,6 +155,13 @@ class StaticVerifier:
                 elif isinstance(sub_node.exc, ast.Call) and isinstance(sub_node.exc.func, ast.Name):
                     raises.add(sub_node.exc.func.id)
         return raises
+    
+    def _get_yield_truth(self, node: ast.AST) -> bool:
+        """Mengecek apakah ada 'yield' atau 'yield from' di dalam tubuh node."""
+        for sub_node in ast.walk(node):
+            if isinstance(sub_node, (ast.Yield, ast.YieldFrom)):
+                return True
+        return False
     
 class Verifier(BaseAgent):
     """
@@ -233,25 +248,35 @@ HASILKAN : objek JSON `SingleCallVerificationReport` yang berisi 'critiques' (da
 """
         # 2. Tambahkan string ceklis dinamis
         self._verifier_checklist_function: str = """
-1.  **short_summary**: Apakah summary ini secara akurat (berdasarkan kode dan konteks) mendeskripsikan FUNGSI UTAMA kode?
-2.  **extended_summary**: Apakah deskripsi ini faktual berdasarkan kode dan konteks? Apakah menjelaskan fungsionalitas dengan benar?
-3.  **parameters**: (PENTING) Evaluasi deskripsi parameter: Apakah sudah mencakup **Signifikansi**, **Batasan** (constraints), dan **Interdependensi**? Apakah deskripsinya cocok dengan PENGGUNAANNYA di kode?
-4.  **returns**: (PENTING) Evaluasi deskripsi nilai kembali: Apakah sudah mencakup **Representasi** (artinya), **Kemungkinan Nilai**, dan **Kondisi**?
-5.  **yields**: (Jika ini generator) Apakah `yields` didokumentasikan dengan benar (menggantikan/melengkapi `returns`)?
-6.  **raises**: (PENTING) Evaluasi deskripsi error: Apakah sudah mencakup penjelasan **Kondisi Spesifik** yang baik?
-7.  **warns**: (PENTING) Evaluasi deskripsi warning: Apakah sudah mencakup penjelasan **Kondisi Spesifik** yang baik?
+**ATURAN MAIN CHECKLIST (DIPERHATIKAN):**
+- **KHUSUS pada Field `parameters`, `returns`, `yields`, `raises`, `warns`: ** Anda HANYA mengevaluasi *field* ini JIKA Dokumentasi dalam format JSON dari writer mengisinya (bukan `null`). JIKA `null`, lewati poin tersebut (anggap lolos).
+
+---
+**CHECKLIST (TUGAS 1):**
+1.  **short_summary**: (PENTING) Apakah summary ini secara akurat (berdasarkan kode dan konteks) mendeskripsikan FUNGSI UTAMA kode?
+2.  **extended_summary**: (PENTING) Apakah deskripsi ini faktual berdasarkan kode dan konteks? Apakah menjelaskan fungsionalitas dengan benar?
+3.  **parameters**: (FOKUS DESKRIPSI) **JIKA `parameters` ADA di JSON**, evaluasi deskripsi parameter: Apakah sudah mencakup **Signifikansi**, **Batasan**, dan **Interdependensi**?
+4.  **returns**: (FOKUS DESKRIPSI) **JIKA `returns` ADA di JSON**, evaluasi deskripsi nilai kembali: Apakah sudah mencakup **Representasi**, **Kemungkinan Nilai**, dan **Kondisi**?
+5.  **yields**: (FOKUS DESKRIPSI) **JIKA `yields` ADA di JSON**, evaluasi deskripsi `yields`: Apakah sudah mencakup **Representasi**, **Kemungkinan Nilai**, dan **Kondisi**?
+6.  **raises**: (FOKUS DESKRIPSI) **JIKA `raises` ADA di JSON**, evaluasi deskripsi error: Apakah sudah mencakup penjelasan **Kondisi Spesifik** yang baik?
+7.  **warns**: (FOKUS DESKRIPSI) **JIKA `warns` ADA di JSON**, evaluasi deskripsi warning: Apakah sudah mencakup penjelasan **Kondisi Spesifik** yang baik?
 8.  **examples**: (PENTING) Apakah contoh kode ini *halusinasi*? Apakah tipe data di contoh cocok dengan signatur fungsi di kode?
-10. **ATURAN GAYA (PENTING)**: Apakah SEMUA teks deskriptif (di `description`, `summary`, dll.) sudah mematuhi **TECHNICAL WRITING DIRECTIVES** (Present Tense, Active Voice, Jelas, Timeless)?
+9. **ATURAN GAYA**: (PENTING) Apakah SEMUA teks deskriptif (di `description`, `summary`, dll.) sudah mematuhi **TECHNICAL WRITING DIRECTIVES** (Present Tense, Active Voice, Jelas, Timeless)?
 
 Patuhi **semua** `LARANGAN KERAS` dan pesan dari System Prompt Anda saat melakukan evaluasi ini.
 """
         self._verifier_checklist_class: str = """
-1.  **short_summary**: Apakah summary ini secara akurat (berdasarkan kode dan konteks) mendeskripsikan FUNGSI UTAMA kode?
-2.  **extended_summary**: Apakah deskripsi ini faktual berdasarkan kode dan konteks? Apakah menjelaskan fungsionalitas dengan benar?
-3.  **parameters** (dari `__init__`): (PENTING) Evaluasi deskripsi parameter constructor: Apakah sudah mencakup **Signifikansi** (pengaruhnya pada instance), **Batasan** (nilai valid), dan **Relasi** antar parameter?
+**ATURAN MAIN CHECKLIST (DIPERHATIKAN):**
+- **KHUSUS pada Field `parameters`: ** Anda HANYA mengevaluasi *field* ini JIKA Dokumentasi dalam format JSON dari writer mengisinya (bukan `null`). JIKA `null`, lewati poin tersebut (anggap lolos).
+
+---
+**CHECKLIST (TUGAS 1):**
+1.  **short_summary**: (PENTING) Apakah summary ini secara akurat (berdasarkan kode dan konteks) mendeskripsikan FUNGSI UTAMA kode?
+2.  **extended_summary**: (PENTING) Apakah deskripsi ini faktual berdasarkan kode dan konteks? Apakah menjelaskan fungsionalitas dengan benar?
+3.  **parameters** (dari `__init__`): (FOKUS DESKRIPSI) **JIKA `parameters` ADA di JSON**, evaluasi deskripsi parameter: Apakah sudah mencakup **Signifikansi**, **Batasan**, dan **Relasi**?
 4.  **attributes**: (PENTING) Evaluasi deskripsi atribut: Apakah sudah mencakup **Tujuan/Signifikansi**, **Tipe/Nilai** yang valid, dan **Dependensi** antar atribut?
 5.  **examples**: (PENTING) Apakah contoh kode ini *halusinasi*? Apakah inisialisasi dan pemanggilan metodenya logis berdasarkan kode?
-6.  **ATURAN GAYA (PENTING)**: Apakah SEMUA teks deskriptif (di `description`, `summary`, dll.) sudah mematuhi **TECHNICAL WRITING DIRECTIVES** (Present Tense, Active Voice, Jelas, Timeless)?
+6.  **ATURAN GAYA**: (PENTING) Apakah SEMUA teks deskriptif (di `description`, `summary`, dll.) sudah mematuhi **TECHNICAL WRITING DIRECTIVES** (Present Tense, Active Voice, Jelas, Timeless)?
 
 Patuhi **semua** `LARANGAN KERAS` dan pesan dari System Prompt Anda saat melakukan evaluasi ini.
 """

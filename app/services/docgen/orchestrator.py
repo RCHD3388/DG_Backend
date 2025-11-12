@@ -23,7 +23,7 @@ from app.services.docgen.agents.agent_output_schema import ReaderOutput
 logger = CustomLogger("Orchestrator")
 
 class Orchestrator(OrchestratorBase):
-    def __init__(self, repo_path: str = "", config_path: str = YAML_CONFIG_PATH, internalCodeParser: InternalCodeParser = None):
+    def __init__(self, repo_path: str = "", config_path: str = YAML_CONFIG_PATH, internalCodeParser: InternalCodeParser = None, task_id: str = "default"):
         logger.info_print("Initiate Manual Orchestrator ...")
         
         self.config = {}
@@ -31,6 +31,7 @@ class Orchestrator(OrchestratorBase):
             self.config = yaml.safe_load(f)
         
         self.repo_path = repo_path 
+        self.task_id = task_id
 
         flow_config = self.config.get('flow_control', {})
         self.max_reader_search_attempts = flow_config.get('max_reader_search_attempts', 3)
@@ -64,6 +65,7 @@ class Orchestrator(OrchestratorBase):
         ]
 
         self._pool_index_counter = 0
+        self._searcher_pool_index_counter = 0
         
         # self.reader = Reader(config_path=config_path)
         # self.searcher = Searcher(config_path=config_path, 
@@ -75,19 +77,27 @@ class Orchestrator(OrchestratorBase):
 
     def setup_current_agents(self):
         
-        num_sets = len(self.writer_pool) 
-        if num_sets == 0:
-            raise Exception("Tidak ada agen Writer yang diinisialisasi di pool.")
+        reader_num_sets = len(self.reader_pool)
+        searcher_num_sets = len(self.searcher_pool)
+        writer_num_sets = len(self.writer_pool)
+        verifier_num_sets = len(self.verifier_pool)
+
+         
+        if writer_num_sets == 0 or reader_num_sets == 0 or verifier_num_sets == 0 or searcher_num_sets == 0:
+            raise Exception("Terdapat module RSWV yang belum diinisialisasi di pool.")
             
         # mendapatkan indeks saat ini
-        index = self._pool_index_counter % num_sets
+        reader_index = self._pool_index_counter % reader_num_sets
+        searcher_index = self._pool_index_counter % searcher_num_sets
+        writer_index = self._pool_index_counter % writer_num_sets
+        verifier_index = self._pool_index_counter % verifier_num_sets
         
-        logger.info_print(f"Menggunakan set agen [Indeks {index}] untuk komponen ini.")
+        logger.info_print(f"Menggunakan set agen R [{reader_index}], W [{writer_index}], V [{verifier_index}], S [{searcher_index}] untuk komponen ini.")
         
-        self.reader = self.reader_pool[index]
-        self.searcher = self.searcher_pool[index]
-        self.writer = self.writer_pool[index]
-        self.verifier = self.verifier_pool[index]
+        self.reader = self.reader_pool[reader_index]
+        self.searcher = self.searcher_pool[searcher_index]
+        self.writer = self.writer_pool[writer_index]
+        self.verifier = self.verifier_pool[verifier_index]
     
     def process(self, component: CodeComponent) -> Dict[str, Any]:
         """Menjalankan seluruh alur kerja dan mengembalikan hasil + statistik."""
@@ -137,9 +147,6 @@ class Orchestrator(OrchestratorBase):
                 content = self.searcher.gathered_data,
                 type = "json"
             )
-        # -- set to reader memory
-        self.reader.add_to_memory("user", state["context"])
-        
 
         # --- Loop Reader-Searcher (Sama seperti kode asli Anda) ---
         while True:
@@ -159,8 +166,30 @@ class Orchestrator(OrchestratorBase):
             if reader_output.info_need and state["reader_search_attempts"] < self.max_reader_search_attempts:
                 state["reader_search_attempts"] += 1
                 
-                # 2. SEARCHER PROCESS
+                # 2.1 SEARCHER PROCESS
                 self.searcher.process(state)
+                # 2.2 Check External retrieval
+                parsed_reader_request = state.get("reader_response", ReaderOutput(info_need=False))
+                if parsed_reader_request.external_retrieval and len(parsed_reader_request.external_retrieval) > 0:
+                    external_searcher_results = {}
+                    # Proses semua pencarian eksternal 
+                    for reader_query in parsed_reader_request.external_retrieval:
+                        # Mendapatkan searcher instance
+                        current_searcher_index = self._searcher_pool_index_counter % len(self.searcher_pool)
+                        searcher_instance = self.searcher_pool[current_searcher_index] 
+                        logger.info_print(f"Menggunakan set agen S [{current_searcher_index}] untuk pencarian eksternal.")
+                        self._searcher_pool_index_counter += 1
+                        # Proses pencarian
+                        searcher_query_response = searcher_instance.search_single_external_query(state, reader_query)
+                        external_searcher_results[reader_query] = searcher_query_response
+                    # Simpan hasil pencarian eksternal
+                    if external_searcher_results:
+                        if "external" not in self.searcher.gathered_data:
+                            self.searcher.gathered_data["external"] = {}
+                            
+                        # Tambahkan hasil baru ke data eksternal yang sudah ada (jika ada)
+                        self.searcher.gathered_data["external"].update(external_searcher_results)
+                
                 
                 # SAVE PROCESS SEARCHER
                 save_docgen_component_process(

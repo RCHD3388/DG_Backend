@@ -175,7 +175,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         
         # Orchestrator loop - Create documentation
         # 6. LOOP PROCESS GENERATE
-        orchestrator = Orchestrator(repo_path=current_repo_path, config_path=config_file_path, internalCodeParser=internalCodeParser)
+        orchestrator = Orchestrator(repo_path=current_repo_path, config_path=config_file_path, internalCodeParser=internalCodeParser, task_id=task_id)
         for component_id in sorted_components:
             
             # if batch_process_counter >= batch_process_limit:
@@ -195,15 +195,16 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
             documentation = generate_documentation_for_component(component, orchestrator)
             parser.add_component_generated_doc(component_id, documentation)
             
-        end_time = time.time()
-        time_format = str(timedelta(seconds=end_time - start_time)).split(".", 1)[0]
-        
-        metadata = {
-            "execution_time": {
-                "seconds": end_time - start_time,
-                "formatted": time_format
+            # capture execution time & save to database
+            end_time = time.time()
+            time_format = str(timedelta(seconds=end_time - start_time)).split(".", 1)[0]
+            metadata = {
+                "execution_time": {
+                    "seconds": end_time - start_time,
+                    "formatted": time_format
+                }
             }
-        }
+            parser.save_record_to_database(record_code=task_id, metadata=metadata, name=analyze_name)
         
         # generate dependency graph visual
         graph_visualizer = GraphVisualizer(formated_component=parser.components)

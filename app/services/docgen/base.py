@@ -35,7 +35,7 @@ class BaseAgent(ABC):
         
         logger.info_print(f"{self.name} LLM Config: {llm_config.get('model')} ({llm_config.get("api_key")})")
 
-        return LLMFactory.create_llm(llm_config)
+        return LLMFactory.create_llm(llm_config, self.name)
     
     def add_to_memory(self, role: str, content: str) -> None:
         """Menambah pesan ke memori internal."""

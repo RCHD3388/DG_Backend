@@ -107,11 +107,11 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
         1.  **`description`**: Deskripsi HARUS mendalam dan mencakup **Signifikansi**, **Batasan**, dan **Interdependensi**.
 
 -   **`raises` dan `warns` (Opsional):**
-    -   **`raises`**: (WAJIB JIKA ADA) Deteksi `raise` statement eksplisit.
-        -   **`error`**: (WAJIB IDENTIK) Salin tipe *error* **secara identik** dari kode. HARUS *case-sensitive* (misal: 'ValueError', 'TypeError').
+    -   **`raises`**: (WAJIB JIKA ADA) Deteksi `raise` statement eksplisit PADA kode yang SEDANG didokumentasi.
+        -   **`error`**: (WAJIB IDENTIK) Salin tipe *error* **secara identik** dari kode. HARUS *case-sensitive* (misal: 'ValueError', 'TypeError', ...).
         -   **`description`**: Jelaskan **kondisi dan keadaan** yang memicu *error* ini.
-    -   **`warns`**: (WAJIB JIKA ADA) Deteksi pemanggilan `warnings.warn()`.
-        -   **`warning`**: (WAJIB IDENTIK) Salin tipe *warning* **secara identik** dari kode. HARUS *case-sensitive* (misal: 'RuntimeWarning', 'DeprecationWarning').
+    -   **`warns`**: (WAJIB JIKA ADA) DETEKSI PEMANGGILAN `warnings.warn()` secara eksplisit PADA kode yang SEDANG didokumentasi.
+        -   **`warning`**: (WAJIB IDENTIK) Salin tipe *warning* **secara identik** dari kode. HARUS *case-sensitive* (misal: 'RuntimeWarning', 'DeprecationWarning', ...).
         -   **`description`**: Jelaskan **kondisi dan keadaan** yang memicu *warning* ini.        
 
 -   **`examples`**: (Sangat dianjurkan) Tulis contoh kode singkat dalam format **doctest** (dimulai dengan `>>> `).
@@ -123,7 +123,7 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
         2.  Sertakan **komentar ringkas dan to-the-point** (diawali `#`) untuk menjelaskan setiap contoh.
 
 -   **Bagian Lain (`notes`, `see_also`, `warnings_section` - OPSIONAL):**
-    -   **PERINGATAN KETAT:** HANYA isi *field-field* ini jika informasi yang relevan 100% faktual, jelas dari konteks/kode, DAN penting/krusial untuk diketahui pembaca.
+    -   **PERINGATAN KETAT:** HANYA isi *field-field* ini jika informasi yang relevan 100% FAKTUAL, jelas dari konteks/kode, DAN penting/krusial untuk diketahui pembaca.
     -   **Jika terdapat sedikit keraguan mengenai akurasi atau kepentingannya, JANGAN DITULIS** (biarkan *field* tersebut `null`).
 """
 

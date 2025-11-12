@@ -20,7 +20,7 @@ class LLMFactory:
         return yaml.safe_load(config_str)
 
     @staticmethod
-    def create_llm(llm_config: Dict[str, Any]) -> BaseChatModel:
+    def create_llm(llm_config: Dict[str, Any], name: str = "llm") -> BaseChatModel:
         """Membuat instance model LangChain berdasarkan konfigurasi."""
         llm_type = llm_config.get("type", "google").lower()
 
@@ -46,8 +46,8 @@ class LLMFactory:
         final_params = {k: v for k, v in all_params.items() if v is not None}
         
         if llm_type == "google":
-            return ChatGoogleGenerativeAI(**final_params)
+            return ChatGoogleGenerativeAI(**final_params).with_config(tags=[name])
         elif llm_type == "mistral":
-            return ChatMistralAI(**final_params)
+            return ChatMistralAI(**final_params).with_config(tags=[name])
         else:
             raise ValueError(f"Tipe LLM '{llm_type}' tidak didukung.")

@@ -280,7 +280,7 @@ class Searcher(BaseAgent):
 
         formatted_result = "\n\n".join(filter(None, context_parts))
         
-        if not formatted_result or formatted_result != "":
+        if not formatted_result or formatted_result == "":
             formatted_result = "Tidak terdapat konteks untuk komponen tersebut."
         return formatted_result
     
@@ -383,7 +383,7 @@ class Searcher(BaseAgent):
         parsed_request = state.get("reader_response", ReaderOutput(info_need=False))
         
         state = self.gather_internal_information(state, parsed_request)
-        state = self.gather_external_information(state, parsed_request)
+        # state = self.gather_external_information(state, parsed_request)
         
         # with open(DUMMY_TESTING_DIRECTORY / f"RS_res_{state["component"].id}.json", "w", encoding="utf-8") as f:
         #     json.dump(self.gathered_data, f, indent=4, ensure_ascii=False)
@@ -424,6 +424,23 @@ class Searcher(BaseAgent):
                     self.gathered_data["internal"]["dependencies"][comp_id] = expanded_data
                 
         return state
+    
+    def search_single_external_query(self, state: AgentState, query: str) -> str:
+        
+        logger.info_print(f"Gathering single external information ...")
+        messages = [
+            SystemMessage(content=self.external_search_system_prompt),
+            HumanMessage(content=query)
+        ]
+        config = {"tags": [self.name], "callbacks": state["callbacks"]}
+        
+        try:
+            response = self.llm.invoke(messages, config=config)
+            time.sleep(5)
+            return response.content.strip()
+        except Exception as e:
+            logger.error_print(f"Error while invoking LLM: {e}")
+            return ""
     
     def gather_external_information(self, state: AgentState, parsed_request: ReaderOutput) -> AgentState:
         
