@@ -169,19 +169,21 @@ class Orchestrator(OrchestratorBase):
                 # 2.1 SEARCHER PROCESS
                 self.searcher.process(state)
                 # 2.2 Check External retrieval
-                parsed_reader_request = state.get("reader_response", ReaderOutput(info_need=False))
-                if parsed_reader_request.external_retrieval and len(parsed_reader_request.external_retrieval) > 0:
+                if reader_output.external_retrieval and len(reader_output.external_retrieval) > 0:
                     external_searcher_results = {}
                     # Proses semua pencarian eksternal 
-                    for reader_query in parsed_reader_request.external_retrieval:
+                    for reader_query in reader_output.external_retrieval:
+                        
                         # Mendapatkan searcher instance
                         current_searcher_index = self._searcher_pool_index_counter % len(self.searcher_pool)
                         searcher_instance = self.searcher_pool[current_searcher_index] 
                         logger.info_print(f"Menggunakan set agen S [{current_searcher_index}] untuk pencarian eksternal.")
                         self._searcher_pool_index_counter += 1
+                        
                         # Proses pencarian
                         searcher_query_response = searcher_instance.search_single_external_query(state, reader_query)
                         external_searcher_results[reader_query] = searcher_query_response
+                    
                     # Simpan hasil pencarian eksternal
                     if external_searcher_results:
                         if "external" not in self.searcher.gathered_data:

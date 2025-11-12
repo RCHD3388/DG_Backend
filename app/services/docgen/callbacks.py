@@ -28,9 +28,20 @@ class TokenUsageCallback(BaseCallbackHandler):
     def on_llm_start(
         self, serialized: Dict[str, Any], prompts: List[str], *, run_id: UUID, parent_run_id: UUID | None = None, tags: list[str] | None = None, **kwargs: Any
     ) -> Any:
-        # Jika ada tag yang diteruskan langsung ke pemanggilan LLM, simpan
+        # Daftar tag komponen utama Anda (buat lowercase untuk pencarian)
+        component_tags = {"writer", "searcher", "reader", "verifier"}
+
         if tags:
-            self._llm_run_tags[run_id] = tags[0]
+            found_tag = None
+            # prioritaskan nama RSWV nya
+            for t in tags:
+                if t.lower() in component_tags:
+                    found_tag = t
+                    break
+            if found_tag:
+                self._llm_run_tags[run_id] = found_tag
+            else:
+                self._llm_run_tags[run_id] = tags[0]
 
     def on_chain_end(
         self, outputs: Dict[str, Any], *, run_id: UUID, **kwargs: Any
