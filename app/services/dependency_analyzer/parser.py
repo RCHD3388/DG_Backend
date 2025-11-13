@@ -476,7 +476,7 @@ class DependencyParser:
                 
                 
     # --- 3 Add Component Generated Documentation START ---
-    def add_component_generated_doc(self, component_id: str, docgen_final_state: Dict[str, Any]):
+    def add_component_generated_doc(self, component_id: str, docgen_final_state: Dict[str, Any], time_used: Dict[str, Any]):
         """Add or update the generated documentation for a specific component."""
         if component_id in self.components:
             # get final state
@@ -500,7 +500,8 @@ class DependencyParser:
                     "verifier_rejection_count": final_state.get("verifier_rejection_count", 0),
                     "documentation_json": documentation_json_dict or {},
                 },
-                "usage_stats": docgen_final_state.get("usage_stats", {})
+                "usage_stats": docgen_final_state.get("usage_stats", {}),
+                "time_used": time_used or {},
             }
         else:
             logger.warning_print(f"Component {component_id} not found to add generated documentation.")

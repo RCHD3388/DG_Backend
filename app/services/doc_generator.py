@@ -191,10 +191,6 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
             else:
                 logger.info_print(f"Processing Component {component_id}")
             
-            # if component_id in limited_component:
-            documentation = generate_documentation_for_component(component, orchestrator)
-            parser.add_component_generated_doc(component_id, documentation)
-            
             # capture execution time & save to database
             end_time = time.time()
             time_format = str(timedelta(seconds=end_time - start_time)).split(".", 1)[0]
@@ -204,6 +200,10 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
                     "formatted": time_format
                 }
             }
+            # if component_id in limited_component:
+            documentation = generate_documentation_for_component(component, orchestrator)
+            parser.add_component_generated_doc(component_id, documentation, metadata)
+            # Save to database 
             parser.save_record_to_database(record_code=task_id, metadata=metadata, name=analyze_name)
         
         # generate dependency graph visual
