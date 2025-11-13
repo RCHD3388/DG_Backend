@@ -63,6 +63,8 @@ class DependencyParser:
         self._add_class_method_dependencies()
         # FOURTH PASS: parent class dependencies
         self._add_parent_class_dependencies()
+        # FIFTH PASS: decorators dependencies
+        self._add_decorator_dependencies()
 
         # logger.info_print(f"Total components collected: {len(self.components)}")
         return self.components
@@ -400,7 +402,7 @@ class DependencyParser:
             # loop daftar parent dari node ClassDef
             for parent in parent_list:
                 # Trace dapatkan semua parent path asli
-                origin_result = self.resolver.trace_symbol_origin(parent, current_filepath=file_path, root_folder=self.repo_path)
+                origin_result = self.resolver.trace_symbol_origin(parent, current_filepath=file_path, root_folder=self.project_root_folder)
                 
                 if origin_result:
                     # mendapatkan format yang tepat
@@ -413,6 +415,66 @@ class DependencyParser:
             
     # --- 2B ADD PARENT CLASS DEPENDENCIES END
 
+    # --- 2C ADD DECORATOR DEPENDENCIES
+    def get_decorator_name(decorator_node: ast.AST) -> str:
+        # Membutuhkan Python 3.9+ untuk ast.unparse
+        try:
+            if isinstance(decorator_node, ast.Call):
+                #  @decorator(arg) @module.decorator(arg)
+                return ast.unparse(decorator_node.func)
+            else:
+                # @decorator atau @module.decorator
+                return ast.unparse(decorator_node)
+                
+        except AttributeError:
+            if isinstance(decorator_node, ast.Name):
+                return decorator_node.id
+            if isinstance(decorator_node, ast.Attribute):
+                return f"{decorator_node.value.id}.{decorator_node.attr}" # Versi sederhana
+            if isinstance(decorator_node, ast.Call):
+                if isinstance(decorator_node.func, ast.Name):
+                    return decorator_node.func.id
+                if isinstance(decorator_node.func, ast.Attribute):
+                    return f"{decorator_node.func.value.id}.{decorator_node.func.attr}" # Versi sederhana
+            return "Unknown"
+    def _add_decorator_dependencies(self):
+        for component_id, component in self.components.items():
+            node = component.node
+            
+            # check masing maing component
+            list_of_decorators: List[str] = []
+            # 1. Jika tidak ada decorator
+            if not hasattr(node, 'decorator_list'):
+                continue
+            
+            # 2 Mendapatkan decorator semuanya
+            for decorator_node in node.decorator_list:
+                if isinstance(decorator_node, ast.Call):
+                    name_node = decorator_node.func # Kasus: @decorator(arg) atau @module.decorator(arg)
+                else:
+                    name_node = decorator_node # Kasus: @decorator atau @module.decorator
+                
+                try:
+                    decorator_name = ast.unparse(name_node)
+                    # mendapatkan symbol origin decorator
+                    origin_information = self.resolver.trace_symbol_origin(
+                            symbol_name = decorator_name, 
+                            current_filepath=component.file_path, 
+                            root_folder=self.project_root_folder
+                        )
+                    # create origin dot path & insert
+                    origin_dot_path = self.resolver.format_origin_to_dot_path(origin_info=origin_information, project_root=self.repo_path)
+                    if origin_dot_path in self.components:
+                        list_of_decorators.append(origin_dot_path)
+                except Exception:
+                    pass
+            
+            # 3. Jika ada decorator
+            if list_of_decorators:
+                for decorator_name in list_of_decorators:
+                    component.depends_on.add(decorator_name)
+                
+                
     # --- 3 Add Component Generated Documentation START ---
     def add_component_generated_doc(self, component_id: str, docgen_final_state: Dict[str, Any]):
         """Add or update the generated documentation for a specific component."""
