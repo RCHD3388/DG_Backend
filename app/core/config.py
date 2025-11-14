@@ -44,6 +44,8 @@ ANALYZE_DIRECTORY = PROCESS_OUTPUT_DIR / "analyze_results"
 GRAPH_VISUALIZATION_DIRECTORY = PROCESS_OUTPUT_DIR / "graph_visualizations"
 DUMMY_TESTING_DIRECTORY = PROCESS_OUTPUT_DIR / "dummy_testing_results"
 
+EVALUATION_RESULTS_DIR = APP_BASE_DIR / "evaluator" / "eval_results"
+
 # Config YAML
 YAML_CONFIG_PATH = APP_BASE_DIR / "config/agent_config.yaml"
 

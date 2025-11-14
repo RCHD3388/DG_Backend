@@ -114,13 +114,18 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
         -   **`warning`**: (WAJIB IDENTIK) Salin tipe *warning* **secara identik** dari kode. HARUS *case-sensitive* (misal: 'RuntimeWarning', 'DeprecationWarning', ...).
         -   **`description`**: Jelaskan **kondisi dan keadaan** yang memicu *warning* ini.        
 
--   **`examples`**: (Sangat dianjurkan) Tulis contoh kode singkat dalam format **doctest** (dimulai dengan `>>> `).
+-   **`examples`**: (PENTING).
+    -   **ATURAN STATUS (TEGAS):** `examples` **WAJIB** anda berikan jika pengecualian dibawah tidak terjadi.
+    -   **PENGECUALIAN :** `examples` menjadi **OPSIONAL** (biarkan `null` jika tidak krusial) HANYA JIKA kondisi ini **TERTULIS EKSPLISIT** di kode:
+        1.  Nama function diawali dengan `_` (misal: `_private_function`).
+        2.  Metode memiliki decorator `@abstractmethod`.
     -   **PERINGATAN UTAMA (ANTI-HALUSINASI)**: Contoh HARUS 100% FAKTUAL dan JELAS. **Lebih baik mengembalikan `null`** daripada mengarang (berhalusinasi) skenario yang tidak faktual atau tidak jelas.
     -   **ATURAN KONTEKS (WAJIB)**: Fokus HANYA pada baris kode yang memanggil komponen tersebut. **WAJIB ASUMSIKAN** semua dependensi (modul, *instance* kelas) sudah ada. **DILARANG KERAS** mendefinisikan ulang kelas/fungsi/method atau menyertakan `import` yang tidak perlu.
     -   **FOKUS KONTEN (Ringkas)**: Fokus untuk **mengilustrasikan penggunaan** (bukan *testing*). Tunjukkan **Skenario Praktis**, **Kombinasi Parameter** umum, atau (jika relevan) pemanggilan yang memicu **Exception**.
     -   **ATURAN FORMAT (WAJIB):**
-        1.  Pisahkan **beberapa** contoh dengan **baris kosong**.
-        2.  Sertakan **komentar ringkas dan to-the-point** (diawali `#`) untuk menjelaskan setiap contoh.
+        1.  Gunakan format **doctest** (dimulai dengan `>>> `).
+        2.  Pisahkan **beberapa** contoh dengan **baris kosong**.
+        3.  Sertakan **komentar ringkas dan to-the-point** (diawali `#`) untuk menjelaskan setiap contoh.
 
 -   **Bagian Lain (`notes`, `see_also`, `warnings_section` - OPSIONAL):**
     -   **PERINGATAN KETAT:** HANYA isi *field-field* ini jika informasi yang relevan 100% FAKTUAL, jelas dari konteks/kode, DAN penting/krusial untuk diketahui pembaca.
@@ -177,13 +182,17 @@ You MUST analyze the code and context to fill all relevant fields in the JSON sc
             -  **Batasan Nilai**: (Opsional) Jelaskan batasan nilai yang valid jika *type hint* tidak cukup (misal: "Harus integer positif").
             -  **Dependensi**: Apakah nilainya bergantung pada atribut atau `parameter` constructor lain?
 
--   **`examples`**: (Sangat dianjurkan) Tulis contoh kode singkat dalam format **doctest** (dimulai dengan `>>> `).
+-   **`examples`**: (PENTING).
+    -   **ATURAN STATUS (TEGAS):** `examples` **WAJIB** anda berikan jika pengecualian dibawah tidak terjadi.
+    -   **PENGECUALIAN :** `examples` menjadi **OPSIONAL** (biarkan `null` jika tidak krusial) HANYA JIKA kondisi ini **TERTULIS EKSPLISIT** di kode:
+        1.  Nama kelas diawali dengan `_` (misal: `_PrivateClass`).
     -   **PERINGATAN UTAMA (ANTI-HALUSINASI)**: Contoh HARUS 100% FAKTUAL dan JELAS. **Lebih baik mengembalikan `null`** daripada mengarang (berhalusinasi) skenario yang tidak faktual atau tidak jelas.
     -   **ATURAN KONTEKS (WAJIB)**: Fokus HANYA pada baris kode yang memanggil komponen tersebut. **WAJIB ASUMSIKAN** semua dependensi (modul, *instance* kelas) sudah ada. **DILARANG KERAS** mendefinisikan ulang kelas/fungsi/method atau menyertakan `import` yang tidak perlu.
     -   **FOKUS KONTEN (Ringkas)**: Fokus untuk **mengilustrasikan penggunaan** (bukan *testing*). Tunjukkan **Skenario Praktis**, **Kombinasi Parameter** umum, atau (jika relevan) pemanggilan yang memicu **Exception**.
     -   **ATURAN FORMAT (WAJIB):**
-        1.  Pisahkan **beberapa** contoh dengan **baris kosong**.
-        2.  Sertakan **komentar ringkas dan to-the-point** (diawali `#`) untuk menjelaskan setiap contoh.
+        1.  Gunakan format **doctest** (dimulai dengan `>>> `).
+        2.  Pisahkan **beberapa** contoh dengan **baris kosong**.
+        3.  Sertakan **komentar ringkas dan to-the-point** (diawali `#`) untuk menjelaskan setiap contoh.
 
 -   **Bagian Lain (`notes`, `see_also`, `warnings_section` - OPSIONAL):**
     -   **PERINGATAN KETAT:** HANYA isi *field-field* ini jika informasi yang relevan 100% faktual, jelas dari konteks/kode, DAN penting/krusial untuk diketahui pembaca.
