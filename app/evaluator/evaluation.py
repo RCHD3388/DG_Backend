@@ -9,12 +9,14 @@ import datetime
 
 testing_repository_root_path = {
     "AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus", 
-    "Economix": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\economix_server\\server-main"
+    "Economix": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\economix_server\\server-main",
+    "Nanochat": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\nanochat-master\\nanochat-master"
 }
 
 testing_repository_record_code = {
     "AutoNUS": "4326d0d0-d41e-423e-b666-573a25f51c0d",
-    "Economix": "116d3ef1-fcce-41f9-887f-17630d872219"
+    "Economix": "116d3ef1-fcce-41f9-887f-17630d872219",
+    "Nanochat" : "6aa2f2c9-898e-4bdc-a75e-d93c3f67d126"
 }
 
 def evaluate_completeness(
@@ -149,6 +151,7 @@ if __name__ == "__main__":
     
     evaluation("AutoNUS")
     evaluation("Economix")
+    # evaluation("Nanochat")
     
     # close mongo connection
     print()

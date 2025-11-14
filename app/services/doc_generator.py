@@ -175,6 +175,7 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         
         # Orchestrator loop - Create documentation
         # 6. LOOP PROCESS GENERATE
+        completed_counter = 0
         orchestrator = Orchestrator(repo_path=current_repo_path, config_path=config_file_path, internalCodeParser=internalCodeParser, task_id=task_id)
         for component_id in sorted_components:
             
@@ -205,6 +206,14 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
             parser.add_component_generated_doc(component_id, documentation, metadata)
             # Save to database 
             parser.save_record_to_database(record_code=task_id, metadata=metadata, name=analyze_name)
+            
+            # Broadcast update
+            completed_counter += 1
+            analysis_update = {
+                "completed_components_count": completed_counter
+            }
+            await redis_client.hset(f"task:{task_id}", mapping=analysis_update)
+            await websocket_manager.broadcast_task_update(task_id)
         
         # generate dependency graph visual
         graph_visualizer = GraphVisualizer(formated_component=parser.components)

@@ -43,6 +43,7 @@ class Task(BaseModel):
     components: Optional[Dict[str, Any]] = {}
     
     # Hasil atau Error
+    completed_components_count: int = 0
     result_dependency_graph: str = ""
     result_url: str = ""
     error: str = ""
