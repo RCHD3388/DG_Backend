@@ -14,6 +14,7 @@ from app.utils.dependency_analyzer_utils import file_to_module_path, add_parent_
 from app.services.dependency_analyzer.collector import DependencyCollector, ImportCollector
 from app.core.mongo_client import get_db
 from app.utils.CustomLogger import CustomLogger
+from app.services.code_component_service import get_hydrated_components_for_record, map_components_by_id
 
 logger = CustomLogger("DepParser")
 
@@ -42,6 +43,13 @@ class DependencyParser:
             raise ValueError(f"Unknown resolver strategy: {strategy}")
 
     def parse_repository(self):
+        # # SPECIAL
+        # self.components = map_components_by_id(get_hydrated_components_for_record(
+        #     root_folder_path="D:\\ISTTS\\Semester_7\\TA\\Project_TA\\DG_Backend\\app\\extracted_projects\\d57bbb72-4dd6-4e78-8e6e-7e93e576ca95\\nanochat-master",
+        #     record_code="d57bbb72-4dd6-4e78-8e6e-7e93e576ca95"
+        # ))
+        # return self.components
+        
         if not self.relevant_files:
             self.relevant_files = self.get_relevant_files()
 

@@ -75,7 +75,7 @@ Your ENTIRE output MUST be a single, valid JSON object strictly adhering to the 
    - **If an ID is not explicitly listed under `Dependencies`, you CANNOT request it.**
    - **Invalid or hallucinated IDs will be ignored.** If you are unsure about an ID, it is better to leave `internal_expand` empty for that ID.
 2. `external_retrieval` (External Knowledge Search):
-   - CRITICAL: This is very expensive. Use ONLY if the code involves novel, state-of-the-art, or very recently proposed algorithms/techniques NOT explainable by standard programming knowledge or existing context.
+   - CRITICAL: This is **VERY EXPENSIVE**. Use ONLY if the code involves novel, state-of-the-art, or very recently proposed algorithms/techniques NOT explainable by standard programming knowledge or existing context.
    - (Examples: Novel loss functions, specific niche metrics, very new research concepts).
    - If used, provide concise, clear, natural language search queries.
 

@@ -120,11 +120,14 @@ class Orchestrator(OrchestratorBase):
         
         # Check if current source code is too long 
         encoding = tiktoken.get_encoding("cl100k_base")  # Default OpenAI encoding
-        token_consume_focal = len(encoding.encode(component.source_code))
+        token_consume_focal = len(encoding.encode(
+            component.source_code,
+            disallowed_special=()
+            ))
         
         truncated_source_code = component.source_code
         if token_consume_focal > self.max_context_token:
-            truncated_source_code = encoding.decode(encoding.encode(component.source_code)[:self.max_context_token])
+            truncated_source_code = encoding.decode(encoding.encode(component.source_code, disallowed_special=())[:self.max_context_token])
         
         state: AgentState = {
             "component": component,

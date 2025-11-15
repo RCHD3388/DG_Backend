@@ -128,6 +128,12 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         await redis_client.hset(f"task:{task_id}", mapping=files_update)
         
         logger.info_print(f"[{task_id}] Parsing repository at {project_extract_path}")
+        
+        # special case
+        # current_repo_path = Path("D:\\ISTTS\\Semester_7\\TA\\Project_TA\\DG_Backend\\app\\extracted_projects\\d57bbb72-4dd6-4e78-8e6e-7e93e576ca95\\nanochat-master")
+        # project_root_folder = Path("D:\\ISTTS\\Semester_7\\TA\\Project_TA\\DG_Backend\\app\\extracted_projects\\d57bbb72-4dd6-4e78-8e6e-7e93e576ca95\\nanochat-master")
+        # root_module_name = "nanochat-master"
+        
         parser = DependencyParser(current_repo_path, project_root_folder, task_id, root_module_name)
         
         relevant_files = parser.get_relevant_files()
@@ -175,7 +181,6 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
         
         # Orchestrator loop - Create documentation
         # 6. LOOP PROCESS GENERATE
-        completed_counter = 0
         orchestrator = Orchestrator(repo_path=current_repo_path, config_path=config_file_path, internalCodeParser=internalCodeParser, task_id=task_id)
         for component_id in sorted_components:
             
@@ -207,13 +212,6 @@ async def generate_documentation_for_project(source_file_path: Path, task_id: st
             # Save to database 
             parser.save_record_to_database(record_code=task_id, metadata=metadata, name=analyze_name)
             
-            # Broadcast update
-            completed_counter += 1
-            analysis_update = {
-                "completed_components_count": completed_counter
-            }
-            await redis_client.hset(f"task:{task_id}", mapping=analysis_update)
-            await websocket_manager.broadcast_task_update(task_id)
         
         # generate dependency graph visual
         graph_visualizer = GraphVisualizer(formated_component=parser.components)

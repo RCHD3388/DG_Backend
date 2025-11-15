@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union, Tuple
 import ast
 from app.schemas.models.code_component_schema import CodeComponent
 from app.services.documentation_service import get_record_from_database, convert_dicts_to_code_components
@@ -52,37 +52,51 @@ class NodeFinder(ast.NodeVisitor):
 
 
 # --- 3. Logika Inti: Hidrasi AST ---
+def source_code_getter(source: str, start_line: int, end_line: int) -> str:
+    """Get source code segment for an AST node."""
+    try:
+        # Fallback to manual extraction
+        lines = source.splitlines()
+        # Koreksi: pastikan kita mengambil baris *termasuk* end_line
+        segment_lines = lines[start_line - 1:end_line] 
+        return "\n".join(segment_lines)
+    
+    except Exception as e:
+        print(f"[SOURCE GETTER] Error getting source segment: {e}")
+        return ""
 
 def _get_ast_tree_from_cache(
     file_path: str, 
-    ast_cache: Dict[str, Optional[ast.Module]]
-) -> Optional[ast.Module]:
+    # REVISI 1: Tipe cache diubah untuk menyimpan (Tree, Source String)
+    ast_cache: Dict[str, Optional[Tuple[ast.Module, str]]]
+) -> Optional[Tuple[ast.Module, str]]:
     """
-    Helper untuk membaca, mem-parse, dan menyimpan AST file dalam cache.
-    Menghindari pembacaan dan parsing file yang sama berulang kali.
+    Membaca, mem-parse, dan menyimpan AST *dan* source string file dalam cache.
+    Mengembalikan tuple (ast.Module, str) atau None jika gagal.
     """
     # 1. Cek apakah sudah ada di cache
     if file_path not in ast_cache:
         try:
-            # Pastikan file ada
             if not os.path.exists(file_path):
                 print(f"[AST ERROR] File tidak ditemukan: {file_path}")
-                ast_cache[file_path] = None # Cache kegagalan
+                ast_cache[file_path] = None
                 return None
 
             # Baca dan parse file
             with open(file_path, 'r', encoding='utf-8') as f:
-                source_code = f.read()
+                source_code = f.read() # <-- Simpan source string
             
-            # Simpan pohon AST yang sukses di-parse ke cache
-            ast_cache[file_path] = ast.parse(source_code, filename=file_path)
+            parsed_tree = ast.parse(source_code, filename=file_path)
+            
+            # REVISI 2: Simpan tuple (Tree, Source) ke cache
+            ast_cache[file_path] = (parsed_tree, source_code)
         
         except Exception as e:
             print(f"[AST ERROR] Gagal mem-parse {file_path}: {e}")
-            ast_cache[file_path] = None # Cache kegagalan
+            ast_cache[file_path] = None
             return None
     
-    # 2. Kembalikan dari cache (bisa berupa tree atau None jika gagal)
+    # 2. Kembalikan dari cache
     return ast_cache[file_path]
 
 def hydrate_components_with_ast(
@@ -90,26 +104,30 @@ def hydrate_components_with_ast(
     root_folder_path: str
 ) -> List[CodeComponent]:
     
-    # Cache untuk menyimpan pohon AST yang sudah di-parse (Path -> ast.Module)
-    ast_cache: Dict[str, Optional[ast.Module]] = {}
+    # REVISI 1: Tipe cache diubah
+    ast_cache: Dict[str, Optional[Tuple[ast.Module, str]]] = {}
     hydrated_list: List[CodeComponent] = []
 
     print(f"Memulai hidrasi AST untuk {len(components)} komponen...")
 
     for comp in components:
-        # Validasi data komponen
         if not comp.relative_path or comp.start_line == 0:
             print(f"[HYDRATE SKIP] Komponen {comp.id} tidak memiliki relative_path atau start_line.")
             continue
 
-        # 1. Dapatkan pohon AST lengkap untuk file komponen ini (via cache)
         absolute_file_path = os.path.join(root_folder_path, comp.relative_path)
-        full_ast_tree = _get_ast_tree_from_cache(absolute_file_path, ast_cache)
+        
+        # REVISI 2: Ambil hasil cache (sekarang berupa tuple atau None)
+        cache_result = _get_ast_tree_from_cache(absolute_file_path, ast_cache)
 
         # Jika file gagal di-parse, lewati komponen ini
-        if full_ast_tree is None:
-            print(f"[HYDRATE SKIP] Melewati {comp.id} karena file {comp.file_path} gagal di-parse.")
+        if cache_result is None:
+            # Pesan error sudah dicetak oleh _get_ast_tree_from_cache
+            print(f"[HYDRATE SKIP] Melewati {comp.id} karena file gagal di-parse.")
             continue
+        
+        # REVISI 3: Bongkar tuple hasil cache
+        full_ast_tree, source_code_string = cache_result
         
         # 2. Cari node spesifik di dalam pohon AST tersebut
         finder = NodeFinder(target_start=comp.start_line, target_end=comp.end_line)
@@ -117,10 +135,17 @@ def hydrate_components_with_ast(
 
         # 3. "Hidrasi" objek komponen
         if found_node:
+            # --- REVISI 4: Panggil source_code_getter ---
+            comp.source_code = source_code_getter(
+                source=source_code_string,
+                start_line=comp.start_line,
+                end_line=comp.end_line
+            )
+            # --------------------------------------------
+            
             comp.node = found_node  # <-- ATRIBUT NODE DIISI DI SINI
             hydrated_list.append(comp)
         else:
-            # Peringatan ini sangat penting untuk debugging
             print(f"[HYDRATE WARN] Tidak dapat menemukan node AST untuk {comp.id} "
                   f"di {comp.relative_path} (L:{comp.start_line}-L:{comp.end_line})")
             
@@ -159,3 +184,9 @@ def get_hydrated_components_for_record(
     hydrated_list = hydrate_components_with_ast(initial_components, root_folder_path)
     
     return hydrated_list
+
+def map_components_by_id(
+    components: List[CodeComponent]
+) -> Dict[str, CodeComponent]:
+    
+    return {comp.id: comp for comp in components}

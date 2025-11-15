@@ -295,7 +295,7 @@ class Searcher(BaseAgent):
         """
         logger.info_print("[Policy] Menerapkan kebijakan konteks...")
         
-        total_tokens = len(self.tokenizer.encode(context_string, disallowed_special=())) + len(self.tokenizer.encode(focal_component_code))
+        total_tokens = len(self.tokenizer.encode(context_string, disallowed_special=())) + len(self.tokenizer.encode(focal_component_code, disallowed_special=()))
         
         logger.info_print(f"[Policy] Total token terhitung: {total_tokens}. Budget: {self.max_context_token}.")
         

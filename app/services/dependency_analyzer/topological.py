@@ -7,7 +7,8 @@ from app.utils.CustomLogger import CustomLogger
 logger = CustomLogger("Topological")
 
 def get_topological_sort_from_dependencies(DG: nx.DiGraph) -> List[str]:
-        
+    
+    # return []
     # Langkah 4: Periksa apakah ada siklus dependensi (cyclic dependency)
     # print(list(nx.simple_cycles(DG)))
 

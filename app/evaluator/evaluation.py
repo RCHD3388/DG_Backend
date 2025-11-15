@@ -16,7 +16,7 @@ testing_repository_root_path = {
 testing_repository_record_code = {
     "AutoNUS": "4326d0d0-d41e-423e-b666-573a25f51c0d",
     "Economix": "116d3ef1-fcce-41f9-887f-17630d872219",
-    "Nanochat" : "6aa2f2c9-898e-4bdc-a75e-d93c3f67d126"
+    "Nanochat" : "15dcbf1a-10b9-4d1e-afc0-6b0f239263ee"
 }
 
 def evaluate_completeness(
@@ -151,7 +151,7 @@ if __name__ == "__main__":
     
     evaluation("AutoNUS")
     evaluation("Economix")
-    # evaluation("Nanochat")
+    evaluation("Nanochat")
     
     # close mongo connection
     print()
