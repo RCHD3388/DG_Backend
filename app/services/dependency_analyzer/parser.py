@@ -83,7 +83,7 @@ class DependencyParser:
         all_py_files = self.repo_path.rglob('*.py')
         current_relevant_files = []
 
-        exclude_dirs = {"venv", ".venv", "pycg-venv", "__pycache__", "tests", "test", "__MACOSX", "__macosx"}
+        exclude_dirs = {"venv", ".venv", "pycg-venv", "__pycache__", "tests", "test", "__MACOSX", "__macosx", "scripts", "docs", "experiments"}
 
         for file_path in all_py_files:
             path_parts = {part.lower() for part in file_path.parts}

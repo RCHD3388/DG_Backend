@@ -10,13 +10,20 @@ import datetime
 testing_repository_root_path = {
     "AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus", 
     "Economix": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\economix_server\\server-main",
-    "Nanochat": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\nanochat-master\\nanochat-master"
+    "Nanochat": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\nanochat-master\\nanochat-master",
+    "Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
+    "PowerPA": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\PowerPlayAssistant-main\\PowerPlayAssistant-main",
+    "ZmapSDK": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\ZmapSDK-main\\ZmapSDK-main",
+    "DMazeRunner": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\dMazeRunner-master\\dMazeRunner-master"
 }
 
 testing_repository_record_code = {
     "AutoNUS": "4326d0d0-d41e-423e-b666-573a25f51c0d",
     "Economix": "116d3ef1-fcce-41f9-887f-17630d872219",
-    "Nanochat" : "15dcbf1a-10b9-4d1e-afc0-6b0f239263ee"
+    "Nanochat" : "15dcbf1a-10b9-4d1e-afc0-6b0f239263ee",
+    "Vlrdev": "4d954681-f678-43f6-9645-621990afca9d",
+    "PowerPA": "cb9850ed-9d21-48a0-b6c4-40926295d47b",
+    "ZmapSDK": "8b313e9f-31d3-4c7d-aad7-cf21d0cff991",
 }
 
 def evaluate_completeness(
@@ -32,8 +39,6 @@ def evaluate_completeness(
     class_evaluator = ClassCompletenessEvaluator() 
     
     all_results: List[CompletenessResultRow] = []
-    
-    print(f"Memulai evaluasi kelengkapan untuk {len(components)} komponen...")
     
     for component in components:
         evaluation_score = 0.0
@@ -149,9 +154,13 @@ if __name__ == "__main__":
     connect_to_mongo()
     print()
     
-    evaluation("AutoNUS")
-    evaluation("Economix")
-    evaluation("Nanochat")
+    evaluation("AutoNUS"); print()
+    evaluation("Economix"); print()
+    evaluation("Nanochat"); print()
+    evaluation("Vlrdev"); print()
+    evaluation("PowerPA"); print()
+    evaluation("ZmapSDK"); print()
+    # evaluation("DMazeRunner"); print()
     
     # close mongo connection
     print()

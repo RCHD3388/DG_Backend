@@ -194,7 +194,7 @@ class Searcher(BaseAgent):
                 break # Keluar dari loop jika konteks sudah valid
             
             # Jika tidak aman, potong data
-            self.gathered_data, omissions_update = self.truncate_context(self.gathered_data, overage_tokens)
+            self.gathered_data = self.truncate_context(self.gathered_data, overage_tokens)
 
             # Pengaman agar tidak terjadi infinite loop
             internal_data = self.gathered_data.get("internal", {})
@@ -307,7 +307,7 @@ class Searcher(BaseAgent):
             logger.info_print(f"[Policy] Konteks melebihi budget. Perlu pemotongan ~{overage} token.")
             return False, overage
         
-    def truncate_context(self, gathered_data: Dict[str, Any], tokens_to_remove: int) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    def truncate_context(self, gathered_data: Dict[str, Any], tokens_to_remove: int) -> Dict[str, Any]:
         """
         Memotong data yang terkumpul (gathered_data) untuk mengurangi jumlah token.
 
@@ -319,7 +319,6 @@ class Searcher(BaseAgent):
         logger.info_print(f"[Truncate] Memulai proses pemotongan untuk mengurangi ~{tokens_to_remove} token.")
         
         truncated_data = gathered_data.copy()
-        omissions_this_round = {"dependencies": [], "used_by": 0, "external": 0}
         
         # TODO: Implementasikan logika pemotongan yang lebih presisi dengan menghitung token.
         # Untuk sekarang, kita gunakan logika sederhana berbasis jumlah item.
@@ -331,23 +330,23 @@ class Searcher(BaseAgent):
             removed_query = list(external_data.keys())[-1]
             logger.info_print(f"    -> [Truncate] Menghapus hasil pencarian eksternal untuk query: '{removed_query}'")
             del external_data[removed_query]
-            omissions_this_round["external"] = 1
-            return truncated_data, omissions_this_round
+            
+            return truncated_data
         
         # --- Prioritas 2: Hapus (atau ringkas) Konteks Kelas ---
         class_context = truncated_data.get("internal", {}).get("class_context")
         if class_context:
             logger.info_print("    -> [Truncate] Menghapus konteks kelas sebagai langkah terakhir.")
             truncated_data["internal"]["class_context"] = None
-            return truncated_data, omissions_this_round
+            return truncated_data
         
         # 2.1. Hapus 'used_by' (contoh penggunaan) terlebih dahulu, karena seringkali
         #    kurang krusial dibandingkan struktur dependensi.
         if truncated_data.get("internal", {}).get("used_by"):
             logger.info_print("[Truncate] (Template) Menghapus satu contoh 'used_by' terakhir.")
             truncated_data["internal"]["used_by"].pop()
-            omissions_this_round["used_by"] = 1
-            return truncated_data, omissions_this_round
+            
+            return truncated_data
 
         # 3. Jika 'used_by' sudah habis, mulai hapus 'dependencies' dari yang
         #    paling tidak penting (skor PageRank terendah).
@@ -357,8 +356,8 @@ class Searcher(BaseAgent):
             lowest_rank_dep_id = list(dependencies.keys())[-1]
             logger.info_print(f"[Truncate] (Template) Menghapus dependensi dengan rank terendah: {lowest_rank_dep_id}")
             del dependencies[lowest_rank_dep_id]
-            omissions_this_round["dependencies"].append(lowest_rank_dep_id)
-            return truncated_data, omissions_this_round
+            
+            return truncated_data
 
         # --- Prioritas 4 : Hapus parent class ---
         class_parents_dict = truncated_data.get("internal", {}).get("class_parent")
@@ -367,12 +366,12 @@ class Searcher(BaseAgent):
             removed_parent_id = list(class_parents_dict.keys())[-1]
             logger.info_print(f"    -> [Truncate] Menghapus konteks parent class: {removed_parent_id}")
             del class_parents_dict[removed_parent_id]
-            omissions_this_round["class_parent"].append(removed_parent_id)
-            return truncated_data, omissions_this_round
+            
+            return truncated_data
 
         # 3. Jika semua sudah habis, tidak ada lagi yang bisa dipotong.
         logger.info_print("[Truncate] Tidak ada lagi yang bisa dipotong.")
-        return truncated_data,
+        return truncated_data
     
     def process(self, state: AgentState) -> AgentState:
         """

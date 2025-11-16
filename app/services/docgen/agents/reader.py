@@ -79,8 +79,6 @@ Your ENTIRE output MUST be a single, valid JSON object strictly adhering to the 
    - (Examples: Novel loss functions, specific niche metrics, very new research concepts).
    - If used, provide concise, clear, natural language search queries.
 
-Tentu. Berikut adalah revisi yang ringkas dan tegas untuk bagian `DECISION LOGIC` dalam Bahasa Inggris:
-
 **DECISION LOGIC (CRITICAL):**
 Your process MUST be as follows:
 1.  Analyze the code and context.

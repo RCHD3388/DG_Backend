@@ -507,7 +507,7 @@ def save_completeness_report(
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(final_report)
             
-        print(f"\n[EVALUATOR] Laporan kelengkapan berhasil disimpan di:\n{output_path}")
+        print(f"[EVALUATOR] Laporan kelengkapan berhasil disimpan")
         
     except Exception as e:
-        print(f"\n[EVALUATOR ERROR] Gagal menyimpan laporan: {e}")
+        print(f"[EVALUATOR ERROR] Gagal menyimpan laporan: {e}")

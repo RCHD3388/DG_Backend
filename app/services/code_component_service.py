@@ -108,8 +108,6 @@ def hydrate_components_with_ast(
     ast_cache: Dict[str, Optional[Tuple[ast.Module, str]]] = {}
     hydrated_list: List[CodeComponent] = []
 
-    print(f"Memulai hidrasi AST untuk {len(components)} komponen...")
-
     for comp in components:
         if not comp.relative_path or comp.start_line == 0:
             print(f"[HYDRATE SKIP] Komponen {comp.id} tidak memiliki relative_path atau start_line.")
@@ -158,9 +156,6 @@ def get_hydrated_components_for_record(
     record_code: str, 
     collection: str = "documentation_results"
 ) -> List[CodeComponent]:
-    
-    print(f"Memulai proses untuk record: {record_code}")
-    print(f"Menggunakan Root Folder: {root_folder_path}")
     
     record_doc = get_record_from_database(
         record_code=record_code, 
