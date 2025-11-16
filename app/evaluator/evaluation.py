@@ -24,6 +24,7 @@ testing_repository_record_code = {
     "Vlrdev": "4d954681-f678-43f6-9645-621990afca9d",
     "PowerPA": "cb9850ed-9d21-48a0-b6c4-40926295d47b",
     "ZmapSDK": "8b313e9f-31d3-4c7d-aad7-cf21d0cff991",
+    "DMazeRunner": "66d6e69a-da43-4618-b715-aaaedfddee16"
 }
 
 def evaluate_completeness(
@@ -160,7 +161,7 @@ if __name__ == "__main__":
     evaluation("Vlrdev"); print()
     evaluation("PowerPA"); print()
     evaluation("ZmapSDK"); print()
-    # evaluation("DMazeRunner"); print()
+    evaluation("DMazeRunner"); print()
     
     # close mongo connection
     print()
