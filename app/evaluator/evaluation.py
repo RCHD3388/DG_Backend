@@ -14,7 +14,8 @@ testing_repository_root_path = {
     "Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
     "PowerPA": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\PowerPlayAssistant-main\\PowerPlayAssistant-main",
     "ZmapSDK": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\ZmapSDK-main\\ZmapSDK-main",
-    "DMazeRunner": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\dMazeRunner-master\\dMazeRunner-master"
+    "DMazeRunner": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\dMazeRunner-master\\dMazeRunner-master",
+    "PyPDFForm": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\PyPDFForm-master\\PyPDFForm-master"
 }
 
 testing_repository_record_code = {
@@ -24,7 +25,8 @@ testing_repository_record_code = {
     "Vlrdev": "4d954681-f678-43f6-9645-621990afca9d",
     "PowerPA": "cb9850ed-9d21-48a0-b6c4-40926295d47b",
     "ZmapSDK": "8b313e9f-31d3-4c7d-aad7-cf21d0cff991",
-    "DMazeRunner": "66d6e69a-da43-4618-b715-aaaedfddee16"
+    "DMazeRunner": "66d6e69a-da43-4618-b715-aaaedfddee16",
+    "PyPDFForm": "f18be374-49a0-4245-a750-67f2ea88a54b"
 }
 
 def evaluate_completeness(
@@ -162,6 +164,7 @@ if __name__ == "__main__":
     evaluation("PowerPA"); print()
     evaluation("ZmapSDK"); print()
     evaluation("DMazeRunner"); print()
+    evaluation("PyPDFForm"); print()
     
     # close mongo connection
     print()
