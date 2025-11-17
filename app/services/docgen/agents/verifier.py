@@ -29,7 +29,8 @@ class StaticVerifier:
         if not s:
             return ""
         # Menghapus spasi dan tanda kurung ekstra dari 'Dict[(str, Any)]'
-        return re.sub(r'[\s\(\)]', '', s)
+        s_normalized = s.replace('"', "'").replace(r'\"', "'")
+        return re.sub(r'[\s\(\)]', '', s_normalized)
 
     def verify(self, component: CodeComponent, doc: NumpyDocstring) -> List[str]:
         """
