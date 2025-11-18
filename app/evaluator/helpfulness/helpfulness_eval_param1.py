@@ -29,7 +29,10 @@ testing_repository_root_path = {
     "ZmapSDK": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\ZmapSDK-main\\ZmapSDK-main",
     "DMazeRunner": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\dMazeRunner-master\\dMazeRunner-master",
     "PyPDFForm": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\PyPDFForm-master\\PyPDFForm-master",
-    "Dexter": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\dexter-main\\dexter-main"
+    "Dexter": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\dexter-main\\dexter-main",
+    "RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master",
+    
+    "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
 }
 
 testing_repository_record_code = {
@@ -41,13 +44,23 @@ testing_repository_record_code = {
     "ZmapSDK": "8b313e9f-31d3-4c7d-aad7-cf21d0cff991",
     "DMazeRunner": "66d6e69a-da43-4618-b715-aaaedfddee16",
     "PyPDFForm": "f18be374-49a0-4245-a750-67f2ea88a54b",
-    "Dexter": "8e425e7f-105d-423f-bf51-10c3c7e8e074"
+    "Dexter": "8e425e7f-105d-423f-bf51-10c3c7e8e074",
+    "RPAP": "632a3373-663a-4b41-bfe7-ea7f597a84f0",
+    
+    "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
 }
 
+# api_keys_list = [
+#     "AIzaSyA_wj5YOMNi2Rj9wV8sYnyxz3rqZZb_mYg", #richardraferguy DGProj
+#     "AIzaSyC61y_8cUqSKAXWtkwlS7XW5wjj13oO9pw", #richard.r22@mhs.istts.ac.id DGProject
+# ]
+
+
 api_keys_list = [
-    "AIzaSyA_wj5YOMNi2Rj9wV8sYnyxz3rqZZb_mYg", #richardraferguy DGProj
-    "AIzaSyC61y_8cUqSKAXWtkwlS7XW5wjj13oO9pw", #richard.r22@mhs.istts.ac.id DGProject
+    "AIzaSyB6E6DEvGraWApkQCBBJAJBVUSbm9nyo1M", #va4 eval03
+    "AIzaSyA04XYTrBerO5geIrw-UxBPfITz71u0ZWg", #ra1-eval04
 ]
+
 
 llm_list: List[ChatGoogleGenerativeAI] = []
 
@@ -307,9 +320,16 @@ def cleancing_data(repository_name):
 
 if __name__ == "__main__":
     
-    cleancing_data("AutoNUS")
+    # cleancing_data("AutoNUS")
     
-    # deskripsi_evaluator = EvaluatorParameterDokumentasi()
+    deskripsi_evaluator = EvaluatorParameterDokumentasi()
     
-    # main_eval("AutoNUS", deskripsi_evaluator, "helpfulness_parameter")
+    # main_eval("Economix", deskripsi_evaluator, "helpfulness_parameter")
+    # main_eval("Vlrdev", deskripsi_evaluator, "helpfulness_parameter")
+    
+    # main_eval("PowerPA", deskripsi_evaluator, "helpfulness_parameter")
+    # main_eval("ZmapSDK", deskripsi_evaluator, "helpfulness_parameter")
+    # main_eval("Dexter", deskripsi_evaluator, "helpfulness_parameter")
+    # main_eval("RPAP", deskripsi_evaluator, "helpfulness_parameter")
+    
     
