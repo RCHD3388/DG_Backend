@@ -138,8 +138,6 @@ def evaluation(repository_name):
     evaluation_results_dir.mkdir(exist_ok=True, parents=True)
     
     # setup results PATH
-    current_date_time = datetime.datetime.now()
-    # current_evaluation_results_dir = evaluation_results_dir / f"{repository_name}_{current_date_time.strftime('%d_%m_%y__%H_%M')}"
     current_evaluation_results_dir = evaluation_results_dir / f"{repository_name}"
     current_evaluation_results_dir.mkdir(exist_ok=True, parents=True)
     
