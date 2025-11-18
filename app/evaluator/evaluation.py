@@ -16,7 +16,10 @@ testing_repository_root_path = {
     "ZmapSDK": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\ZmapSDK-main\\ZmapSDK-main",
     "DMazeRunner": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\dMazeRunner-master\\dMazeRunner-master",
     "PyPDFForm": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\PyPDFForm-master\\PyPDFForm-master",
-    "Dexter": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\dexter-main\\dexter-main"
+    "Dexter": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\dexter-main\\dexter-main",
+    "RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master",
+    
+    "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
 }
 
 testing_repository_record_code = {
@@ -28,7 +31,10 @@ testing_repository_record_code = {
     "ZmapSDK": "8b313e9f-31d3-4c7d-aad7-cf21d0cff991",
     "DMazeRunner": "66d6e69a-da43-4618-b715-aaaedfddee16",
     "PyPDFForm": "f18be374-49a0-4245-a750-67f2ea88a54b",
-    "Dexter": "8e425e7f-105d-423f-bf51-10c3c7e8e074"
+    "Dexter": "8e425e7f-105d-423f-bf51-10c3c7e8e074",
+    "RPAP": "632a3373-663a-4b41-bfe7-ea7f597a84f0",
+    
+    "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
 }
 
 def evaluate_completeness(
@@ -123,7 +129,7 @@ def evaluate_completeness(
 def evaluate_truthfulness():
     return
 
-def evaluation(repository_name):
+def evaluation(repository_name, type: str = None):
     
     # mendapatkan ROOT PATH dan RECORD CODE dari project yang ingin dievaluasi
     eval_project_root_path = testing_repository_root_path[repository_name]
@@ -136,6 +142,10 @@ def evaluation(repository_name):
     
     evaluation_results_dir = EVALUATION_RESULTS_DIR
     evaluation_results_dir.mkdir(exist_ok=True, parents=True)
+    
+    if type:
+        evaluation_results_dir = evaluation_results_dir / f"{type}"
+        evaluation_results_dir.mkdir(exist_ok=True, parents=True)
     
     # setup results PATH
     current_evaluation_results_dir = evaluation_results_dir / f"{repository_name}"
@@ -157,15 +167,17 @@ if __name__ == "__main__":
     connect_to_mongo()
     print()
     
-    evaluation("AutoNUS"); print()
-    evaluation("Economix"); print()
-    evaluation("Nanochat"); print()
-    evaluation("Vlrdev"); print()
-    evaluation("PowerPA"); print()
-    evaluation("ZmapSDK"); print()
-    evaluation("DMazeRunner"); print()
-    evaluation("PyPDFForm"); print()
-    evaluation("Dexter"); print()
+    # evaluation("AutoNUS"); print()
+    # evaluation("Economix"); print()
+    # evaluation("Nanochat"); print()
+    # evaluation("Vlrdev"); print()
+    # evaluation("PowerPA"); print()
+    # evaluation("ZmapSDK"); print()
+    # evaluation("DMazeRunner"); print()
+    # evaluation("PyPDFForm"); print()
+    # evaluation("Dexter"); print()
+    
+    evaluation("M_AutoNUS", "mistral"); print()
     
     # close mongo connection
     print()
