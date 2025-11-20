@@ -115,7 +115,7 @@ class GraphVisualizer:
         # 2. Tambahkan edge dan node untuk 'depends_on'
         for dep_id in depends_on:
             self._style_node(dot, dep_id)
-            dot.edge(component_id, dep_id, xlabel='calls', fontsize='8', fontcolor='gray50')
+            dot.edge(component_id, dep_id, xlabel='depend_on', fontsize='8', fontcolor='gray50')
 
         # 3. Tambahkan edge dan node untuk 'used_by'
         for user_id in used_by:

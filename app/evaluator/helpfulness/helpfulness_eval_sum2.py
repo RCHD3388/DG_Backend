@@ -4,7 +4,6 @@ import datetime
 import re
 import os
 import time
-import ast
 
 from app.schemas.models.code_component_schema import CodeComponent
 from app.services.code_component_service import get_hydrated_components_for_record, convert_dicts_to_code_components, map_components_by_id
@@ -33,8 +32,6 @@ testing_repository_root_path = {
     "RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master",
     
     "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
-    "M_Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
-    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master"
 }
 
 testing_repository_record_code = {
@@ -50,24 +47,39 @@ testing_repository_record_code = {
     "RPAP": "632a3373-663a-4b41-bfe7-ea7f597a84f0",
     
     "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
-    "M_Vlrdev": "6b43c70a-e878-44c2-ab55-8b919116bcc6",
-    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1"
 }
 
 # api_keys_list = [
-#     "AIzaSyA_wj5YOMNi2Rj9wV8sYnyxz3rqZZb_mYg", #richardraferguy DGProj
-#     "AIzaSyC61y_8cUqSKAXWtkwlS7XW5wjj13oO9pw", #richard.r22@mhs.istts.ac.id DGProject
+#     "AIzaSyAk15nyhP0l_fCtJykak-sicHpcjAi73rQ", #rmh
+#     "AIzaSyCMIYWCfDPUS96uiGDopbEX13LARvU51Co", #xg8
+# ]
+
+# api_keys_list = [
+#     "AIzaSyAP_6gEXrGrSyRyMrGCs0UOsC_5nf3Ha50", #xg38 GemEvalTru
+#     "AIzaSyBkaMjqhVfRtJf1MwerHFhkcP9l0BNJnbY", #rraferg33@gmail.com GeminiEvalTru
 # ]
 
 
 # api_keys_list = [
-#     "AIzaSyB6E6DEvGraWApkQCBBJAJBVUSbm9nyo1M", #va4 eval03
-#     "AIzaSyA04XYTrBerO5geIrw-UxBPfITz71u0ZWg", #ra1-eval04
+#     "AIzaSyDXx_7xwHT5Q3917MBIN51GebwYvtC5-Nw", #eval01
+#     "AIzaSyASMF2dvtM8bKA4V3n3OFUfXqCEeeTe3Os", #eval06
+# ]
+
+# api_keys_list = [
+#     "AIzaSyArOi2ZJto6q9kP0O2Zm6JcaP6mLgFmt_4", #ver05
+#     "AIzaSyBm76jEgvaVu8GQldzfgL51BiKdFN675RA", #ver06
+# ]
+
+# api_keys_list = [
+#     "AIzaSyAPcsBEtG9FkvNtB3syUN_cj0nBbofX9a4", #tikno3
+#     "AIzaSyDrmEr2KLko7qcer21CT0f-WeDmx1yVoAk", #tikno4
+#     "AIzaSyDH2j_VAvITzm0xJbmVSBnCodsOKDFDimg"
 # ]
 
 api_keys_list = [
     "AIzaSyDrS5GiBl-ljFSNp5xeRkPJcO00D1_f_fo", #searcher02
     "AIzaSyCbv5tW_b1U07IBBTdsMCCFpOBHxqdQjUo", #evalllm01 evaluationTA
+    "AIzaSyDcq9VWA8JUhh75rnR3HUnvIvrFt9hqG4s",
     "AIzaSyDH2j_VAvITzm0xJbmVSBnCodsOKDFDimg"
 ]
 
@@ -92,51 +104,9 @@ for api_key in api_keys_list:
 
 print(f"\nTotal koneksi LLM yang berhasil dibuat: {len(llm_list)}")
     
-def _has_parameters(node: ast.AST) -> bool:
-    """
-    Mengecek apakah node (Function/Class) memiliki parameter yang perlu didokumentasikan.
-    Mengabaikan 'self' dan 'cls'.
-    """
-    target_node = None
 
-    # 1. Tentukan Target Node (Fungsi itu sendiri atau __init__ kelas)
-    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        target_node = node
-    elif isinstance(node, ast.ClassDef):
-        # Cari __init__
-        for item in node.body:
-            if isinstance(item, ast.FunctionDef) and item.name == "__init__":
-                target_node = item
-                break
-        else:
-            # Jika tidak ada __init__ eksplisit, dianggap tidak ada parameter kustom
-            return False
-    else:
-        return False
-
-    # 2. Hitung Parameter
-    if target_node:
-        args = target_node.args
-        # Hitung total argumen eksplisit
-        total_args = len(args.args) + len(args.posonlyargs) + len(args.kwonlyargs)
-        if args.vararg: total_args += 1
-        if args.kwarg: total_args += 1
-        
-        # Cek apakah argumen pertama adalah 'self' atau 'cls' (untuk method/init)
-        # Biasanya ada di args.args[0]
-        if args.args:
-            first_arg_name = args.args[0].arg
-            if first_arg_name in ['self', 'cls']:
-                total_args -= 1
-        
-        return total_args > 0
-
-    return False
-
-def main_eval(repository_name, 
-        evaluator: EvaluatorParameterDokumentasi,
-        file_name: str,
-        type: str = None
+def main_eval_summary(repository_name, 
+         summary_evaluator: EvaluatorSummaryDokumentasi,
 ):
     llm_cur_index = 0
     
@@ -154,15 +124,10 @@ def main_eval(repository_name,
     # Setup Path
     evaluation_results_dir = EVALUATION_RESULTS_DIR
     evaluation_results_dir.mkdir(exist_ok=True, parents=True)
-    
-    if type:
-        evaluation_results_dir = evaluation_results_dir / f"{type}"
-        evaluation_results_dir.mkdir(exist_ok=True, parents=True)
-    
     current_evaluation_results_dir = evaluation_results_dir / f"{repository_name}"
     current_evaluation_results_dir.mkdir(exist_ok=True, parents=True)
     
-    output_path = os.path.join(current_evaluation_results_dir, f"{file_name}.json")
+    output_path = os.path.join(current_evaluation_results_dir, f"helpfulness_summary.json")
     
     results = {}
     
@@ -172,24 +137,20 @@ def main_eval(repository_name,
                 existing_data = json.load(f)
                 # Ambil 'details' jika ada, jika tidak biarkan kosong
                 results = existing_data.get("details", {})
-            print(f"[INFO] Melanjutkan evaluasi. Memuat {len(results)} hasil sebelumnya dari {file_name}.json")
+            print(f"[INFO] Melanjutkan evaluasi. Memuat {len(results)} hasil sebelumnya")
         except Exception as e:
             print(f"[WARN] Gagal memuat file lama: {e}. Memulai evaluasi dari awal.")
     
     # EVALUASI SEMUA COMPONENTS
     check_counter = 0
-    skipped_count = 0
     for comp_id, component in components.items():
         
         # -- LOG --
         if comp_id in results:
             print(f"Mengecek komponen {check_counter + 1}/{total_components}: {comp_id} -> [SKIPPED] Sudah dievaluasi.")
+            check_counter += 1
             continue # Lanjut ke komponen berikutnya tanpa memanggil LLM
-        print(f"Mengecek komponen {check_counter + 1}/{total_components} (S: {skipped_count}): {comp_id}")
-        
-        if not _has_parameters(component.node):
-            skipped_count += 1
-            continue
+        print(f"Mengecek komponen {check_counter + 1}/{total_components}: {comp_id}")
         
         # SETUP. mendapatkan LLM yang digunakan
         llm_used_index = llm_cur_index % len(llm_list)
@@ -201,7 +162,7 @@ def main_eval(repository_name,
         
         # -- EVALUASI --
         # E1. Buat prompt
-        prompt = evaluator.get_evaluation_prompt(component, docstring_text)
+        prompt = summary_evaluator.get_evaluation_prompt(component, docstring_text)
         messages = [
             SystemMessage(content="Anda adalah pakar evaluasi kualitas dokumentasi kode."),
             HumanMessage(content=prompt)
@@ -213,7 +174,7 @@ def main_eval(repository_name,
             response_text = response_message.content
             
             # E3. Parse LLM response
-            score, suggestion = evaluator.parse_llm_response(response_text)
+            score, suggestion = summary_evaluator.parse_llm_response(response_text)
             
             # E4. Simpan hasil
             results[comp_id] = {
@@ -248,7 +209,7 @@ def main_eval(repository_name,
         }
         
         # Simpan hasil ke dalam file JSON
-        output_path = os.path.join(current_evaluation_results_dir, f"{file_name}.json")
+        output_path = os.path.join(current_evaluation_results_dir, "helpfulness_summary.json")
         with open(output_path, "w") as f:
             json.dump(final_report_data, f, indent=2)
     
@@ -256,14 +217,14 @@ def main_eval(repository_name,
     close_mongo_connection()
 
 
-def clean_parameter_evaluation_results(
+def clean_summary_evaluation_results(
     file_path: str, 
     output_path: str,
     components: Dict[str, CodeComponent],
     repository_name: str
 ):
     print(f"\n[CLEANUP] Memulai pembersihan data evaluasi parameter di: {file_path}")
-    evaluator = EvaluatorParameterDokumentasi()
+    evaluator = EvaluatorSummaryDokumentasi()
     
     if not os.path.exists(file_path):
         print(f"[CLEANUP ERROR] File tidak ditemukan: {file_path}")
@@ -290,18 +251,10 @@ def clean_parameter_evaluation_results(
         # Cek apakah komponen ada di map komponen kita
         if comp_id not in components:
             continue
-            
-        component = components[comp_id]
         
-        # Cek apakah komponen memiliki parameter menggunakan AST
-        if _has_parameters(component.node):
-            # JIKA ADA PARAM: Simpan data evaluasi ini
-            score, _ = evaluator.parse_llm_response(eval_result["raw_response"])
-            eval_result['score'] = score 
-            new_details[comp_id] = eval_result
-        else:
-            # JIKA TIDAK ADA PARAM: Skip (Hapus dari laporan)
-            skipped_count += 1
+        score, _ = evaluator.parse_llm_response(eval_result["raw_response"])
+        eval_result['score'] = score 
+        new_details[comp_id] = eval_result
             
     total_evaluated = len(new_details)
     total_score = sum(item['score'] for item in new_details.values())
@@ -342,9 +295,10 @@ def cleancing_data(repository_name):
     current_evaluation_results_dir = evaluation_results_dir / f"{repository_name}"
     current_evaluation_results_dir.mkdir(exist_ok=True, parents=True)
     
-    file_path = os.path.join(current_evaluation_results_dir, f"helpfulness_parameter.json")
+    file_path = os.path.join(current_evaluation_results_dir, f"helpfulness_summary.json")
+    # output_path = os.path.join(current_evaluation_results_dir, f"helpfulness_sum.json")
     
-    clean_parameter_evaluation_results(file_path=file_path, output_path=file_path, components=components, repository_name=repository_name)
+    clean_summary_evaluation_results(file_path=file_path, output_path=file_path, components=components, repository_name=repository_name)
     
     print()
     close_mongo_connection()
@@ -352,24 +306,20 @@ def cleancing_data(repository_name):
 if __name__ == "__main__":
     
     # cleancing_data("AutoNUS")
-    # main_eval("AutoNUS", deskripsi_evaluator, "helpfulness_parameter")
     
-    deskripsi_evaluator = EvaluatorParameterDokumentasi()
+    summary_evaluator = EvaluatorSummaryDokumentasi()
     
-    # main_eval("Economix", deskripsi_evaluator, "helpfulness_parameter")
-    # main_eval("Vlrdev", deskripsi_evaluator, "helpfulness_parameter")
+    # main_eval_summary("Economix", summary_evaluator)
+    # main_eval_summary("Vlrdev", summary_evaluator)
+    # main_eval_summary("DMazeRunner", summary_evaluator)
     
-    # main_eval("DMazeRunner", deskripsi_evaluator, "helpfulness_parameter")
-    # main_eval("PyPDFForm", deskripsi_evaluator, "helpfulness_parameter")
-    # main_eval("Nanochat", deskripsi_evaluator, "helpfulness_parameter")
+    # main_eval_summary("PyPDFForm", summary_evaluator)
+    main_eval_summary("Nanochat", summary_evaluator)
+    # main_eval_summary("AutoNUS", summary_evaluator)
     
     
-    # main_eval("PowerPA", deskripsi_evaluator, "helpfulness_parameter")
-    # main_eval("ZmapSDK", deskripsi_evaluator, "helpfulness_parameter")
-    # main_eval("Dexter", deskripsi_evaluator, "helpfulness_parameter")
-    # main_eval("RPAP", deskripsi_evaluator, "helpfulness_parameter")
+    # main_eval_summary("PowerPA", summary_evaluator)
+    # main_eval_summary("ZmapSDK", summary_evaluator)
+    # main_eval_summary("Dexter", summary_evaluator)
+    # main_eval_summary("RPAP", summary_evaluator)
     
-    # ----- mistral
-    # main_eval("M_AutoNUS", deskripsi_evaluator, "helpfulness_parameter", "mistral")
-    # main_eval("M_RPAP", deskripsi_evaluator, "helpfulness_parameter", "mistral")
-    main_eval("M_Vlrdev", deskripsi_evaluator, "helpfulness_parameter", "mistral")

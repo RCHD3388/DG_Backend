@@ -32,6 +32,8 @@ testing_repository_root_path = {
     "RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master",
     
     "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
+    "M_Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
+    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master"
 }
 
 testing_repository_record_code = {
@@ -47,6 +49,8 @@ testing_repository_record_code = {
     "RPAP": "632a3373-663a-4b41-bfe7-ea7f597a84f0",
     
     "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
+    "M_Vlrdev": "6b43c70a-e878-44c2-ab55-8b919116bcc6",
+    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1"
 }
 
 # api_keys_list = [
@@ -59,6 +63,12 @@ testing_repository_record_code = {
 #     "AIzaSyBkaMjqhVfRtJf1MwerHFhkcP9l0BNJnbY", #rraferg33@gmail.com GeminiEvalTru
 # ]
 
+# api_keys_list = [
+#     "AIzaSyAvA94CfJNa_LkhaaNCImUwVER5mhFb5To", #writer03
+#     "AIzaSyAAh1DdBgmHsnMfEQVeajpn9-qnb9feBl4", #ra2,
+#     "AIzaSyC-w6CfDcAJHxkOSsmf0LcCoy_Z819gJIA" #writer02
+# ]
+
 
 # api_keys_list = [
 #     "AIzaSyBZE0C7gBsdqz282dWFsNbcU6NBB7sNpBk", #rmh eval01
@@ -66,8 +76,10 @@ testing_repository_record_code = {
 # ]
 
 api_keys_list = [
-    "AIzaSyAvWpHgK9YoFm9lprrtZtvY1iPjyJ2ev_k",
-    "AIzaSyDmIXIpyipYE8aEoupyUV410jqHZRRpfSg"
+    "AIzaSyCdiPzLAgrp4znqr917OW7aeRNFQpdYkSk",
+    "AIzaSyBY4_ci6MCWtq93cNTMVfs-lXm4-mAE7xk",
+    "AIzaSyCMIYWCfDPUS96uiGDopbEX13LARvU51Co",
+    "AIzaSyAP_6gEXrGrSyRyMrGCs0UOsC_5nf3Ha50", #xg38 GemEvalTru
 ]
 
 llm_list: List[ChatGoogleGenerativeAI] = []
@@ -93,7 +105,8 @@ print(f"\nTotal koneksi LLM yang berhasil dibuat: {len(llm_list)}")
 
 def main_eval(repository_name, 
         evaluator: EvaluatorDeskripsiDokumentasi,
-        file_name: str
+        file_name: str,
+        type: str = None
 ):
     llm_cur_index = 0
     
@@ -111,16 +124,36 @@ def main_eval(repository_name,
     # Setup Path
     evaluation_results_dir = EVALUATION_RESULTS_DIR
     evaluation_results_dir.mkdir(exist_ok=True, parents=True)
+    
+    if type:
+        evaluation_results_dir = evaluation_results_dir / f"{type}"
+        evaluation_results_dir.mkdir(exist_ok=True, parents=True)
+        
     current_evaluation_results_dir = evaluation_results_dir / f"{repository_name}"
     current_evaluation_results_dir.mkdir(exist_ok=True, parents=True)
     
+    output_path = os.path.join(current_evaluation_results_dir, f"{file_name}.json")
+    
     results = {}
+    
+    if os.path.exists(output_path):
+        try:
+            with open(output_path, "r") as f:
+                existing_data = json.load(f)
+                # Ambil 'details' jika ada, jika tidak biarkan kosong
+                results = existing_data.get("details", {})
+            print(f"[INFO] Melanjutkan evaluasi. Memuat {len(results)} hasil sebelumnya dari {file_name}.json")
+        except Exception as e:
+            print(f"[WARN] Gagal memuat file lama: {e}. Memulai evaluasi dari awal.")
     
     # EVALUASI SEMUA COMPONENTS
     check_counter = 0
     for comp_id, component in components.items():
         
         # -- LOG --
+        if comp_id in results:
+            print(f"Mengecek komponen {check_counter + 1}/{total_components}: {comp_id} -> [SKIPPED] Sudah dievaluasi.")
+            continue # Lanjut ke komponen berikutnya tanpa memanggil LLM
         print(f"Mengecek komponen {check_counter + 1}/{total_components}: {comp_id}")
         
         # SETUP. mendapatkan LLM yang digunakan
@@ -191,15 +224,21 @@ if __name__ == "__main__":
     
     deskripsi_evaluator = EvaluatorDeskripsiDokumentasi()
     
-    # main_eval("AutoNUS", deskripsi_evaluator, "helpfulness_description_final")
     
     # main_eval("Economix", deskripsi_evaluator, "helpfulness_description")
     # main_eval("Vlrdev", deskripsi_evaluator, "helpfulness_description")
-    main_eval("DMazeRunner", deskripsi_evaluator, "helpfulness_description")
+    # main_eval("DMazeRunner", deskripsi_evaluator, "helpfulness_description")
     
-    
+    # main_eval("PyPDFForm", deskripsi_evaluator, "helpfulness_description")
+    # main_eval("Nanochat", deskripsi_evaluator, "helpfulness_description")
+    # main_eval("AutoNUS", deskripsi_evaluator, "helpfulness_description")
     
     # main_eval("PowerPA", deskripsi_evaluator, "helpfulness_description")
     # main_eval("ZmapSDK", deskripsi_evaluator, "helpfulness_description")
     # main_eval("Dexter", deskripsi_evaluator, "helpfulness_description")
     # main_eval("RPAP", deskripsi_evaluator, "helpfulness_description")
+    
+    # main_eval("M_AutoNUS", deskripsi_evaluator, "helpfulness_description", "mistral")
+    # main_eval("M_Vlrdev", deskripsi_evaluator, "helpfulness_description", "mistral")
+    main_eval("M_RPAP", deskripsi_evaluator, "helpfulness_description", "mistral")
+    

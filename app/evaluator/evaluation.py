@@ -20,6 +20,8 @@ testing_repository_root_path = {
     "RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master",
     
     "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
+    "M_Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
+    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master"
 }
 
 testing_repository_record_code = {
@@ -35,6 +37,8 @@ testing_repository_record_code = {
     "RPAP": "632a3373-663a-4b41-bfe7-ea7f597a84f0",
     
     "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
+    "M_Vlrdev": "6b43c70a-e878-44c2-ab55-8b919116bcc6",
+    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1"
 }
 
 def evaluate_completeness(
@@ -178,6 +182,8 @@ if __name__ == "__main__":
     # evaluation("Dexter"); print()
     
     evaluation("M_AutoNUS", "mistral"); print()
+    evaluation("M_Vlrdev", "mistral"); print()
+    evaluation("M_RPAP", "mistral"); print()
     
     # close mongo connection
     print()

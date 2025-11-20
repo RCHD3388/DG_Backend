@@ -10,3 +10,10 @@ class AnalysisRequestBody(BaseModel):
     config_filename: str
     process_name: str
     root_folder: str
+    
+class GenerateResultRequest(BaseModel):
+    mode: str
+
+class GenerateResultResponse(BaseModel):
+    pdf_url: str
+    docx_url: str

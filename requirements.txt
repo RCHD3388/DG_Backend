@@ -11,3 +11,5 @@ langchain_core
 langchain_google_genai
 graphviz
 langchain-mistralai
+python-docx
+docx2pdf
