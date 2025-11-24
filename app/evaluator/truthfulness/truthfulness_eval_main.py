@@ -53,7 +53,6 @@ testing_repository_record_code = {
 
 api_keys_list = [
     "AIzaSyB3ePXqNh86z_qFuqCDnHnlR3ctSbY7uYE", # tikno
-    "AIzaSyDjLZu3oY0JnZOBO7MkI4_ukWo1P-WkzUI", #eval08
     "AIzaSyCcw6MiszvalIwPKFPbALJIP1negIsBQfo", # tikno2
     "AIzaSyAPcsBEtG9FkvNtB3syUN_cj0nBbofX9a4", #tikno3
     "AIzaSyDrmEr2KLko7qcer21CT0f-WeDmx1yVoAk", #tikno4
@@ -504,10 +503,11 @@ if __name__ == "__main__":
     # main("PyPDFForm")
     # main("Vlrdev")
     # main("ZmapSDK")
+    main("RPAP")
     
     # main("M_AutoNUS", "mistral")
     # main("M_Vlrdev", "mistral")
-    main("M_RPAP", "mistral")
+    # main("M_RPAP", "mistral")
     
     
     print()
