@@ -11,6 +11,7 @@ from app.services.code_component_service import get_hydrated_components_for_reco
 from app.core.mongo_client import close_mongo_connection, connect_to_mongo
 from app.evaluator.completeness_eval import FunctionCompletenessEvaluator, ClassCompletenessEvaluator, save_completeness_report, CompletenessResultRow
 from app.core.config import EVALUATION_RESULTS_DIR 
+from app.evaluator.baseline_vanilla import hasil_chatgpt_pro, hasil_gemini_25_pro
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.language_models import BaseChatModel
@@ -51,17 +52,17 @@ testing_repository_record_code = {
     "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1"
 }
 
-api_keys_list = [
-    "AIzaSyB3ePXqNh86z_qFuqCDnHnlR3ctSbY7uYE", # tikno
-    "AIzaSyCcw6MiszvalIwPKFPbALJIP1negIsBQfo", # tikno2
-    "AIzaSyAPcsBEtG9FkvNtB3syUN_cj0nBbofX9a4", #tikno3
-    "AIzaSyDrmEr2KLko7qcer21CT0f-WeDmx1yVoAk", #tikno4
-]
-
 # api_keys_list = [
-#     "AIzaSyA_wj5YOMNi2Rj9wV8sYnyxz3rqZZb_mYg", #richardraferguy DGProj
-#     "AIzaSyC61y_8cUqSKAXWtkwlS7XW5wjj13oO9pw", #richard.r22@mhs.istts.ac.id DGProject
+#     # "AIzaSyB3ePXqNh86z_qFuqCDnHnlR3ctSbY7uYE", # tikno
+#     "AIzaSyCcw6MiszvalIwPKFPbALJIP1negIsBQfo", # tikno2
+#     "AIzaSyAPcsBEtG9FkvNtB3syUN_cj0nBbofX9a4", #tikno3
+#     "AIzaSyDrmEr2KLko7qcer21CT0f-WeDmx1yVoAk", #tikno4
 # ]
+
+api_keys_list = [
+    "AIzaSyAk15nyhP0l_fCtJykak-sicHpcjAi73rQ", #rmh
+    "AIzaSyBkaMjqhVfRtJf1MwerHFhkcP9l0BNJnbY", #xg8
+]
 
 llm_list: List[ChatGoogleGenerativeAI] = []
 
@@ -488,7 +489,133 @@ def main(repository_name, type: str = None):
     with open(output_path, "w") as f:
         json.dump(final_report_data, f, indent=2)
     
+def evaluate_vanilla_truthfulness(
+    repository_name: str, 
+    vanilla_outputs: Dict[str, str], # Input: {ComponentID: "Hasil Teks Vanilla..."}
+    report_filename: str = "vanilla_truthfulness_report.json"
+):
+    """
+    Mengevaluasi truthfulness dari hasil Vanilla Prompting.
+    
+    Args:
+        repository_name: Nama repo (untuk load AST asli).
+        vanilla_outputs: Dictionary berisi ID Komponen dan Teks Hasil Vanilla Prompting.
+        report_filename: Nama file output.
+    """
+    
+    print(f"\n--- MEMULAI EVALUASI VANILLA (Baseline) UNTUK: {repository_name} ---")
+    
+    connect_to_mongo()
+    
+    # 1. Load Components Asli (PENTING: Untuk mendapatkan AST Node guna verifikasi)
+    # Kita perlu memuat seluruh repo agar Global Check (cross-file dependency) tetap jalan.
+    print("[INIT] Loading Repository Context...")
+    eval_project_root_path = testing_repository_root_path[repository_name]
+    eval_record_code = testing_repository_record_code[repository_name]
+    
+    # Dapatkan semua komponen terhidrasi (AST siap)
+    all_components = map_components_by_id(get_hydrated_components_for_record(
+        root_folder_path=eval_project_root_path,
+        record_code=eval_record_code
+    ))
+    
+    # Setup Path Output
+    evaluation_results_dir = EVALUATION_RESULTS_DIR / repository_name
+    evaluation_results_dir.mkdir(exist_ok=True, parents=True)
+    
+    results = {}
+    llm_cur_index = 0
+    
+    # 2. Loop HANYA pada komponen yang ada di vanilla_outputs
+    total_targets = len(vanilla_outputs)
+    current_idx = 0
+    
+    for comp_id, vanilla_text in vanilla_outputs.items():
+        current_idx += 1
+        print(f"Evaluasi Vanilla {current_idx}/{total_targets}: {comp_id}")
+        
+        # Validasi: Pastikan ID komponen valid ada di repo
+        if comp_id not in all_components:
+            print(f"  -> [ERROR] Component ID '{comp_id}' tidak ditemukan di repo asli. Skip.")
+            continue
+            
+        target_component = all_components[comp_id]
+        
+        # SETUP LLM (Untuk Ekstraksi)
+        llm_used_index = llm_cur_index % len(llm_list)
+        model = llm_list[llm_used_index]
+        llm_cur_index += 1
+        
+        # --- STEP A: EKSTRAKSI ---
+        # Kita ekstrak komponen yang disebut dalam teks Vanilla
+        try:
+            mentioned_component_names = extract_components_from_docstring(
+                docstring=vanilla_text, 
+                model=model
+            )
+        except Exception as e:
+            print(f"  -> [ERROR] Gagal ekstraksi: {e}")
+            mentioned_component_names = []
+            
+        # --- STEP B: VERIFIKASI (TRUTHFULNESS CHECK) ---
+        # Menggunakan logika check_existence_of_component yang sudah canggih (Global + Local AST)
+        component_results = []
+        for mentioned in mentioned_component_names:
+            check_name = mentioned
+            if "." in mentioned:
+                check_name = mentioned.split(".")[-1]
+            
+            # Cek keberadaan menggunakan AST node dari target_component
+            exist_status = check_existence_of_component(
+                mentioned=check_name, 
+                components=all_components, # Untuk Global Check
+                current_component=target_component # Untuk Local AST Check (Param, Body, dll)
+            )
+            
+            component_results.append({
+                "mentioned": mentioned,
+                "exist": exist_status
+            })
+            
+        # --- STEP C: HASIL ---
+        true_positives = len([c for c in component_results if c["exist"]])
+        total_mentions = len(mentioned_component_names)
+        
+        score = (true_positives / total_mentions * 100) if total_mentions > 0 else 0
+        
+        print(f"  -> Mentions: {total_mentions}, Valid: {true_positives} ({score:.1f}%)")
+        
+        results[comp_id] = {
+            "mentioned_components": component_results,
+            "total_mentions": total_mentions,
+            "total_exist": true_positives,
+            "score": score,
+            "raw_vanilla_text": vanilla_text[:100] + "..." # Simpan snippet untuk verifikasi
+        }
+        
+        time.sleep(2) # Rate limit preventions
 
+    # 3. Final Report Construction
+    total_mentions_all = sum(res["total_mentions"] for res in results.values())
+    total_exist_all = sum(res["total_exist"] for res in results.values())
+    final_score = (total_exist_all / total_mentions_all * 100) if total_mentions_all > 0 else 0
+    
+    final_report_data = {
+        "type": "Vanilla Prompting Baseline",
+        "repository": repository_name,
+        "overall_score": final_score,
+        "total_mentions": total_mentions_all,
+        "total_exist": total_exist_all,
+        "details": results
+    }
+    
+    # Simpan ke JSON
+    output_path = os.path.join(evaluation_results_dir, report_filename)
+    with open(output_path, "w") as f:
+        json.dump(final_report_data, f, indent=2)
+        
+    print(f"\n[SELESAI] Laporan Vanilla disimpan di: {output_path}")
+    close_mongo_connection()
 
 if __name__ == "__main__":
     connect_to_mongo()
@@ -503,12 +630,16 @@ if __name__ == "__main__":
     # main("PyPDFForm")
     # main("Vlrdev")
     # main("ZmapSDK")
-    main("RPAP")
+    # main("RPAP")
     
     # main("M_AutoNUS", "mistral")
     # main("M_Vlrdev", "mistral")
     # main("M_RPAP", "mistral")
+    # evaluate_vanilla_truthfulness("ZmapSDK", hasil_gemini_25_pro, "hasil_gemini_zs_no_dep")
+    # evaluate_vanilla_truthfulness("ZmapSDK", hasil_chatgpt_pro, "hasil_chatgpt_zs_no_dep")
     
+    # evaluate_vanilla_truthfulness("ZmapSDK", hasil_gemini_25_pro, "hasil_gemini_fs_no_dep")
+    evaluate_vanilla_truthfulness("ZmapSDK", hasil_chatgpt_pro, "hasil_chatgpt_fs_no_dep")
     
     print()
     close_mongo_connection()

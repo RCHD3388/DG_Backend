@@ -14,6 +14,7 @@ from app.evaluator.helpfulness.helpfulness_description import EvaluatorDeskripsi
 from app.evaluator.helpfulness.helpfulness_parameter import EvaluatorParameterDokumentasi
 from app.core.config import EVALUATION_RESULTS_DIR 
 from langchain_core.messages import HumanMessage, SystemMessage
+from app.evaluator.baseline_vanilla import hasil_chatgpt_pro, hasil_gemini_25_pro
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.language_models import BaseChatModel
@@ -66,9 +67,9 @@ testing_repository_record_code = {
 # ]
 
 api_keys_list = [
-    "AIzaSyDrS5GiBl-ljFSNp5xeRkPJcO00D1_f_fo", #searcher02
-    "AIzaSyCbv5tW_b1U07IBBTdsMCCFpOBHxqdQjUo", #evalllm01 evaluationTA
-    "AIzaSyDH2j_VAvITzm0xJbmVSBnCodsOKDFDimg"
+# "AIzaSyDN7qOVgzMlh0yHr1yG38CzUdXgEV3eSqo",
+"AIzaSyD3PnFN2j22Ey_sBYTeN7K4TCevVsUCbdQ",
+"AIzaSyArOi2ZJto6q9kP0O2Zm6JcaP6mLgFmt_4"
 ]
 
 
@@ -349,6 +350,123 @@ def cleancing_data(repository_name):
     print()
     close_mongo_connection()
 
+
+
+def main_eval_vanila(repository_name, 
+        evaluator: EvaluatorParameterDokumentasi,
+        file_name: str,
+        vanila_list, 
+        type: str = None,
+):
+    llm_cur_index = 0
+    
+    connect_to_mongo()
+    print()
+    
+    # Get Components
+    eval_project_root_path = testing_repository_root_path[repository_name]
+    eval_record_code = testing_repository_record_code[repository_name]
+    components = map_components_by_id(get_hydrated_components_for_record(
+        root_folder_path=eval_project_root_path,
+        record_code=eval_record_code
+    ))
+    total_components = len(components)
+    # Setup Path
+    evaluation_results_dir = EVALUATION_RESULTS_DIR
+    evaluation_results_dir.mkdir(exist_ok=True, parents=True)
+    
+    if type:
+        evaluation_results_dir = evaluation_results_dir / f"{type}"
+        evaluation_results_dir.mkdir(exist_ok=True, parents=True)
+    
+    current_evaluation_results_dir = evaluation_results_dir / f"{repository_name}"
+    current_evaluation_results_dir.mkdir(exist_ok=True, parents=True)
+    
+    results = {}
+    
+    
+    # EVALUASI SEMUA COMPONENTS
+    check_counter = 0
+    skipped_count = 0
+    for comp_id, component in components.items():
+        
+        # -- LOG --
+        if comp_id not in vanila_list:
+            continue # Lanjut ke komponen berikutnya tanpa memanggil LLM
+        print(f"Mengecek komponen {check_counter + 1}/{total_components} (S: {skipped_count}): {comp_id}")
+        
+        if not _has_parameters(component.node):
+            skipped_count += 1
+            continue
+        
+        # SETUP. mendapatkan LLM yang digunakan
+        llm_used_index = llm_cur_index % len(llm_list)
+        model = llm_list[llm_used_index]
+        llm_cur_index += 1
+        
+        docstring_text = vanila_list[comp_id]
+        
+        # -- EVALUASI --
+        # E1. Buat prompt
+        prompt = evaluator.get_evaluation_prompt(component, docstring_text)
+        messages = [
+            SystemMessage(content="Anda adalah pakar evaluasi kualitas dokumentasi kode."),
+            HumanMessage(content=prompt)
+        ]
+        
+        try:
+            # E2. Panggil LLM
+            response_message = model.invoke(messages)
+            response_text = response_message.content
+            
+            # E3. Parse LLM response
+            score, suggestion = evaluator.parse_llm_response(response_text)
+            
+            # E4. Simpan hasil
+            results[comp_id] = {
+                "score": score,
+                "suggestion": suggestion,
+                "component_type": component.component_type,
+                "raw_response": response_text  # Opsional: simpan respon mentah untuk debug
+            }
+            print(f"   -> Skor: {score}/5")
+
+        except Exception as e:
+            print(f"   -> ERROR saat evaluasi {comp_id}: {e}")
+            results[comp_id] = {
+                "score": 0,
+                "suggestion": f"Error during evaluation: {str(e)}",
+                "component_type": component.component_type
+            }
+        
+        # -- LOG --
+        check_counter += 1
+        time.sleep(4)
+        
+        # -- Final Report --
+        total_score = sum(item['score'] for item in results.values())
+        avg_score = total_score / len(results) if results else 0
+        
+        final_report_data = {
+            "repository_name": repository_name,
+            "average_summary_score": avg_score,
+            "total_components": len(results),
+            "details": results
+        }
+        
+        # Simpan hasil ke dalam file JSON
+        output_path = os.path.join(current_evaluation_results_dir, f"{file_name}.json")
+        with open(output_path, "w") as f:
+            json.dump(final_report_data, f, indent=2)
+    
+    print()
+    close_mongo_connection()
+
+
+
+
+
+
 if __name__ == "__main__":
     
     # cleancing_data("AutoNUS")
@@ -372,4 +490,9 @@ if __name__ == "__main__":
     # ----- mistral
     # main_eval("M_AutoNUS", deskripsi_evaluator, "helpfulness_parameter", "mistral")
     # main_eval("M_RPAP", deskripsi_evaluator, "helpfulness_parameter", "mistral")
-    main_eval("M_Vlrdev", deskripsi_evaluator, "helpfulness_parameter", "mistral")
+    # main_eval("M_Vlrdev", deskripsi_evaluator, "helpfulness_parameter", "mistral")
+    
+    
+    main_eval_vanila("ZmapSDK", deskripsi_evaluator, "vanilla_ZS_chatgpt_helpfulness_parameter", hasil_chatgpt_pro)
+    # main_eval_vanila("ZmapSDK", deskripsi_evaluator, "vanilla_ZS_gemini_helpfulness_parameter", hasil_gemini_25_pro)
+    
