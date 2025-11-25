@@ -17,7 +17,11 @@ testing_repository_root_path = {
     "DMazeRunner": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\dMazeRunner-master\\dMazeRunner-master",
     "PyPDFForm": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\PyPDFForm-master\\PyPDFForm-master",
     "Dexter": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\dexter-main\\dexter-main",
-    "RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master"
+    "RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master",
+    
+    "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
+    "M_Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
+    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master"
 }
 
 testing_repository_record_code = {
@@ -30,7 +34,11 @@ testing_repository_record_code = {
     "DMazeRunner": "66d6e69a-da43-4618-b715-aaaedfddee16",
     "PyPDFForm": "f18be374-49a0-4245-a750-67f2ea88a54b",
     "Dexter": "8e425e7f-105d-423f-bf51-10c3c7e8e074",
-    "RPAP": "632a3373-663a-4b41-bfe7-ea7f597a84f0"
+    "RPAP": "632a3373-663a-4b41-bfe7-ea7f597a84f0",
+    
+    "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
+    "M_Vlrdev": "6b43c70a-e878-44c2-ab55-8b919116bcc6",
+    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1"
 }
 
 def process_count(repository_name):
@@ -310,16 +318,20 @@ if __name__ == "__main__":
     connect_to_mongo()
     print()
     
-    process_count("AutoNUS"); print()
-    process_count("Economix"); print()
-    process_count("Nanochat"); print()
-    process_count("Vlrdev"); print()
-    process_count("PowerPA"); print()
-    process_count("ZmapSDK"); print()
-    process_count("DMazeRunner"); print()
-    process_count("PyPDFForm"); print()
-    process_count("Dexter"); print()
-    process_count("RPAP"); print()
+    # process_count("AutoNUS"); print()
+    # process_count("Economix"); print()
+    # process_count("Nanochat"); print()
+    # process_count("Vlrdev"); print()
+    # process_count("PowerPA"); print()
+    # process_count("ZmapSDK"); print()
+    # process_count("DMazeRunner"); print()
+    # process_count("PyPDFForm"); print()
+    # process_count("Dexter"); print()
+    # process_count("RPAP"); print()
+    
+    process_count("M_AutoNUS"); print()
+    process_count("M_RPAP"); print()
+    process_count("M_Vlrdev"); print()
     
     # close mongo connection
     print()

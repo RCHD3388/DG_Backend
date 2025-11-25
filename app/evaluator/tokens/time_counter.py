@@ -26,6 +26,10 @@ testing_repository_root_path = {
     "Nanochat_1": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\nanochat-master\\nanochat-master",
     "Nanochat_2": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\nanochat-master\\nanochat-master",
     "Nanochat_3": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\nanochat-master\\nanochat-master",
+    
+    "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
+    "M_Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
+    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master"
 }
 
 testing_repository_record_code = {
@@ -43,13 +47,17 @@ testing_repository_record_code = {
     "Dexter_C1": "526f0351-a43b-4444-8166-eb0e52290a69",
     "DMazeRunner_C1": "30ec627b-61e4-4d8b-a314-b09a4de18016",
     "Nanochat_1": "d2f42775-f357-4c6b-adff-c59f5b3b2367",
-    "Nanochat_2": "d57bbb72-4dd6-4e78-8e6e-7e93e576ca95"
+    "Nanochat_2": "d57bbb72-4dd6-4e78-8e6e-7e93e576ca95",
+    
+    "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
+    "M_Vlrdev": "6b43c70a-e878-44c2-ab55-8b919116bcc6",
+    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1"
 }
 
 # Setup Direktori
 evaluation_results_dir = EVALUATION_RESULTS_DIR
 evaluation_results_dir.mkdir(exist_ok=True, parents=True)
-REPORT_FILE_PATH = os.path.join(evaluation_results_dir, "time_usage_report.txt")
+REPORT_FILE_PATH = os.path.join(evaluation_results_dir, "time_usage_mistral_report.txt")
 
 # --- HELPER: Format Waktu ---
 def format_duration(seconds: float) -> str:
@@ -192,15 +200,15 @@ if __name__ == "__main__":
 
     # Contoh Penggunaan dengan Exclude (Misal RPAP diproses 2 tahap)
     # Tahap 1: Proses normal
-    ids, t, c = process_count("Nanochat_1")
-    ids, t, c = process_count("Nanochat_2", excluded_components=ids, prior_duration=t, prior_count=c)
-    ids, t, c = process_count("Nanochat", excluded_components=ids, prior_duration=t, prior_count=c)
+    # ids, t, c = process_count("Nanochat_1")
+    # ids, t, c = process_count("Nanochat_2", excluded_components=ids, prior_duration=t, prior_count=c)
+    # ids, t, c = process_count("Nanochat", excluded_components=ids, prior_duration=t, prior_count=c)
     
-    ids, t, c = process_count("Dexter_C1")
-    ids, t, c = process_count("Dexter", excluded_components=ids, prior_duration=t, prior_count=c)
+    # ids, t, c = process_count("Dexter_C1")
+    # ids, t, c = process_count("Dexter", excluded_components=ids, prior_duration=t, prior_count=c)
     
-    ids, t, c = process_count("DMazeRunner_C1")
-    ids, t, c = process_count("DMazeRunner", excluded_components=ids, prior_duration=t, prior_count=c)
+    # ids, t, c = process_count("DMazeRunner_C1")
+    # ids, t, c = process_count("DMazeRunner", excluded_components=ids, prior_duration=t, prior_count=c)
     
     # processed_ids_auto = process_count("Dexter_C1")
     # processed_ids_auto = process_count("Dexter", excluded_components=processed_ids_auto)
@@ -221,6 +229,10 @@ if __name__ == "__main__":
     
     # Untuk saat ini panggil sekali saja sesuai default
     
+    # mistral 
+    ids, t, c = process_count("M_AutoNUS")
+    ids, t, c = process_count("M_RPAP")
+    ids, t, c = process_count("M_Vlrdev")
     
     print("\nSemua proses selesai.")
     close_mongo_connection()
