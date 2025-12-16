@@ -64,11 +64,15 @@ def customize_pagerank_processing(
 def get_pagerank_scores(DG: nx.DiGraph) -> Dict[str, float]:
 
     try:
+        
         # analyze_pagerank_scores, max_iter, history = customize_pagerank_processing(DG)
         # print("[PageRank] Max Iterasi: ", max_iter)
         # print("[PageRank] History: ", history)
         # print("[PageRank] Result: ", analyze_pagerank_scores)
-        pagerank_scores = nx.pagerank(DG)
+        
+        reversed_DG = DG.reverse(copy=True)
+        
+        pagerank_scores = nx.pagerank(reversed_DG)
         
         return pagerank_scores
     except Exception as e:
