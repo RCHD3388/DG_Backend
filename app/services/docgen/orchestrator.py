@@ -23,12 +23,15 @@ from app.services.docgen.agents.agent_output_schema import ReaderOutput
 logger = CustomLogger("Orchestrator")
 
 class Orchestrator(OrchestratorBase):
-    def __init__(self, repo_path: str = "", config_path: str = YAML_CONFIG_PATH, internalCodeParser: InternalCodeParser = None, task_id: str = "default"):
+    def __init__(self, repo_path: str = "", config_path: str = YAML_CONFIG_PATH, internalCodeParser: InternalCodeParser = None, task_id: str = "default"
+                 , writer_verifier_version = "v1"):
         logger.info_print("Initiate Manual Orchestrator ...")
         
         self.config = {}
         with open(str(config_path), 'r') as f:
             self.config = yaml.safe_load(f)
+        
+        self.writer_verifier_version = writer_verifier_version
         
         self.repo_path = repo_path 
         self.task_id = task_id
@@ -45,7 +48,7 @@ class Orchestrator(OrchestratorBase):
         default_llm_config = self.config.get("llm")
 
         self.writer_pool: List[Writer] = [
-            Writer(llm_config=cfg) 
+            Writer(llm_config=cfg, prompt_version=writer_verifier_version) 
             for cfg in agent_llm_configs.get('writer', [default_llm_config])
         ]
         self.reader_pool: List[Reader] = [
@@ -60,7 +63,7 @@ class Orchestrator(OrchestratorBase):
             for cfg in agent_llm_configs.get('searcher', [default_llm_config])
         ]
         self.verifier_pool: List[Verifier] = [
-            Verifier(llm_config=cfg) 
+            Verifier(llm_config=cfg, writer_verifier_version=writer_verifier_version) 
             for cfg in agent_llm_configs.get('verifier', [default_llm_config])
         ]
 

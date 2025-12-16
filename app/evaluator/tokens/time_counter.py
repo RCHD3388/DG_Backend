@@ -29,7 +29,9 @@ testing_repository_root_path = {
     
     "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
     "M_Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
-    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master"
+    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master",
+    
+    "DP_Test": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\LabTry\\DemoProject"
 }
 
 testing_repository_record_code = {
@@ -51,13 +53,17 @@ testing_repository_record_code = {
     
     "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
     "M_Vlrdev": "6b43c70a-e878-44c2-ab55-8b919116bcc6",
-    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1"
+    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1",
+    
+    # "DP_Test": "36d83f09-c0c9-483f-87e9-5210a4944a48",
+    "DP_Test": "b21fecc1-970a-4045-b75b-1a3845e16a7f"
 }
 
 # Setup Direktori
 evaluation_results_dir = EVALUATION_RESULTS_DIR
 evaluation_results_dir.mkdir(exist_ok=True, parents=True)
-REPORT_FILE_PATH = os.path.join(evaluation_results_dir, "time_usage_mistral_report.txt")
+# REPORT_FILE_PATH = os.path.join(evaluation_results_dir, "time_usage_mistral_report.txt")
+REPORT_FILE_PATH = os.path.join(evaluation_results_dir, "time_usage_dp_test.txt")
 
 # --- HELPER: Format Waktu ---
 def format_duration(seconds: float) -> str:
@@ -230,9 +236,11 @@ if __name__ == "__main__":
     # Untuk saat ini panggil sekali saja sesuai default
     
     # mistral 
-    ids, t, c = process_count("M_AutoNUS")
-    ids, t, c = process_count("M_RPAP")
-    ids, t, c = process_count("M_Vlrdev")
+    # ids, t, c = process_count("M_AutoNUS")
+    # ids, t, c = process_count("M_RPAP")
+    # ids, t, c = process_count("M_Vlrdev")
+    
+    ids, t, c = process_count("DP_Test")
     
     print("\nSemua proses selesai.")
     close_mongo_connection()

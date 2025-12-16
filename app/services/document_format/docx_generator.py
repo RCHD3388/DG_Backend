@@ -39,6 +39,7 @@ TRANSLATIONS = {
         "graph_header": "Visualisasi Dependensi", 
         "summary_header": "Summary",             
         "description_header": "Description",     
+        "default_col": "Default",
     },
     "en": {
         "title_suffix": "Technical Documentation",
@@ -68,6 +69,7 @@ TRANSLATIONS = {
         "graph_header": "Dependency Visualization",
         "summary_header": "Summary",             
         "description_header": "Description",     
+        "default_col": "Default",  
     }
 }
 
@@ -247,10 +249,17 @@ class DocxDocumentationGenerator:
             for item in data:
                 row_cells = table.add_row().cells
                 for i, field_key in enumerate(fields):
-                    # Ambil value, handle None/missing
-                    val = item.get(field_key, "") or ""
-                    # Khusus field 'name' atau 'error', kita buat bold otomatis di tabel? Opsional.
-                    row_cells[i].text = str(val)
+                    # # Ambil value, handle None/missing
+                    # val = item.get(field_key, "") or ""
+                    # # Khusus field 'name' atau 'error', kita buat bold otomatis di tabel? Opsional.
+                    # row_cells[i].text = str(val)
+                    
+                    # Jika field adalah 'default_value' DAN val kosong/None, isi dengan "-"
+                    if field_key == 'default' and (val is None or val == ""):
+                        val = "-"
+                    
+                    # Pastikan konversi ke string aman (handle integer 0 atau False)
+                    row_cells[i].text = str(val) if val is not None else ""
 
         # --- OPSI 2: FORMAT TEKS (REVISI FIX) ---
         else:
@@ -299,6 +308,13 @@ class DocxDocumentationGenerator:
                 # Contoh: user_id (str)
                 if type_val:
                     p.add_run(f" ({type_val})").italic = True
+
+                def_val = item.get('default')
+                if def_val is not None and def_val != "":
+                    # Gunakan warna abu-abu agar terlihat sebagai properti sekunder
+                    run = p.add_run(f" [Default: {def_val}]")
+                    run.font.color.rgb = RGBColor(100, 100, 100)
+                    run.font.size = Pt(9)
 
                 # 4. RENDER DESKRIPSI (Baris Baru & Indented)
                 desc_val = str(item.get('description', "") or "")
@@ -385,12 +401,34 @@ class DocxDocumentationGenerator:
         # --- MENGGUNAKAN HELPER BARU UNTUK SEKSI ---
         
         # 4. Parameters
-        self._render_section(
-            title=self.labels["params_header"],
-            data=doc_data.get("parameters", []),
-            fields=['name', 'type', 'description'],
-            headers=[self.labels["col_name"], self.labels["col_type"], self.labels["col_desc"]]
-        )
+        params_data = doc_data.get("parameters", [])
+        
+        # Cek apakah setidaknya ada SATU item yang memiliki 'default_value' yang tidak kosong
+        if params_data:
+            has_default = any(
+                p.get("default") is not None and p.get("default") != "" 
+                for p in params_data
+            )
+
+            # Siapkan struktur dasar
+            param_fields = ['name', 'type']
+            param_headers = [self.labels["col_name"], self.labels["col_type"]]
+
+            # SUNTIKKAN kolom default value hanya jika diperlukan
+            if has_default:
+                param_fields.append('default')
+                param_headers.append(self.labels["default_col"])
+
+            # Tambahkan deskripsi di akhir
+            param_fields.append('description')
+            param_headers.append(self.labels["col_desc"])
+            
+            self._render_section(
+                title=self.labels["params_header"],
+                data=params_data,
+                fields=param_fields,
+                headers=param_headers
+            )
 
         # 5. Attributes
         self._render_section(

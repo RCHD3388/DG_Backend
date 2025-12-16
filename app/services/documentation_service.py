@@ -30,7 +30,8 @@ def get_all_documentations_from_db(
 
 def get_record_from_database(
     record_code: str, collection: str = "documentation_results",
-    sidebar_mode: bool = False
+    sidebar_mode: bool = False,
+    class_filt = True
     ) -> Optional[Dict[str, Any]]:
     
     # 1. Operasi Database (find_one)
@@ -46,6 +47,29 @@ def get_record_from_database(
         return None
     
     if record_document:
+        # Class Filt
+        if class_filt:
+            all_components = record_document.get('components', []) or []
+            for comp in all_components:
+                # Cek apakah tipe komponen adalah 'class'
+                if comp.get('component_type') == 'class':
+                    try:
+                        # Akses nested dictionary dengan aman
+                        # Gunakan chaining .get() untuk menghindari error jika key di tengah hilang
+                        doc_state = comp.get('docgen_final_state') or {}
+                        final_state = doc_state.get('final_state') or {}
+                        doc_json = final_state.get('documentation_json')
+
+                        # Pastikan doc_json ada dan berbentuk dictionary sebelum diubah
+                        if isinstance(doc_json, dict):
+                            doc_json['returns'] = None
+                            doc_json['yields'] = None
+                            doc_json['receives'] = None
+                    except Exception as e:
+                        # Silent fail agar tidak mengganggu flow utama jika struktur data rusak
+                        pass
+        
+        # 2 SIDEBAR MODE CHECK
         if not sidebar_mode:
             return record_document
         
