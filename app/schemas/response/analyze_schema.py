@@ -13,6 +13,8 @@ class AnalysisRequestBody(BaseModel):
     
 class GenerateResultRequest(BaseModel):
     mode: str
+    include_overview: bool = True
+    source_code_mode: str = "signature"
 
 class GenerateResultResponse(BaseModel):
     pdf_url: str

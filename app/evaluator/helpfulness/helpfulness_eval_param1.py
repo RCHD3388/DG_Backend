@@ -35,7 +35,9 @@ testing_repository_root_path = {
     
     "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
     "M_Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
-    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master"
+    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master",
+    
+    "Demo": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\DG_Backend\\app\\extracted_projects\\64248805-bbe9-4afc-a761-779f39fe12f4\\DemoProject_2"
 }
 
 testing_repository_record_code = {
@@ -52,24 +54,14 @@ testing_repository_record_code = {
     
     "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
     "M_Vlrdev": "6b43c70a-e878-44c2-ab55-8b919116bcc6",
-    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1"
+    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1",
+    
+    "Demo": "64248805-bbe9-4afc-a761-779f39fe12f4"
 }
 
-# api_keys_list = [
-#     "AIzaSyA_wj5YOMNi2Rj9wV8sYnyxz3rqZZb_mYg", #richardraferguy DGProj
-#     "AIzaSyC61y_8cUqSKAXWtkwlS7XW5wjj13oO9pw", #richard.r22@mhs.istts.ac.id DGProject
-# ]
-
-
-# api_keys_list = [
-#     "AIzaSyB6E6DEvGraWApkQCBBJAJBVUSbm9nyo1M", #va4 eval03
-#     "AIzaSyA04XYTrBerO5geIrw-UxBPfITz71u0ZWg", #ra1-eval04
-# ]
 
 api_keys_list = [
-# "AIzaSyDN7qOVgzMlh0yHr1yG38CzUdXgEV3eSqo",
-"AIzaSyD3PnFN2j22Ey_sBYTeN7K4TCevVsUCbdQ",
-"AIzaSyArOi2ZJto6q9kP0O2Zm6JcaP6mLgFmt_4"
+    "TEMPORARY_GOOGLE_API_KEY"
 ]
 
 
@@ -486,6 +478,7 @@ if __name__ == "__main__":
     # main_eval("ZmapSDK", deskripsi_evaluator, "helpfulness_parameter")
     # main_eval("Dexter", deskripsi_evaluator, "helpfulness_parameter")
     # main_eval("RPAP", deskripsi_evaluator, "helpfulness_parameter")
+    main_eval("Demo", deskripsi_evaluator, "helpfulness_parameter")
     
     # ----- mistral
     # main_eval("M_AutoNUS", deskripsi_evaluator, "helpfulness_parameter", "mistral")
@@ -493,6 +486,6 @@ if __name__ == "__main__":
     # main_eval("M_Vlrdev", deskripsi_evaluator, "helpfulness_parameter", "mistral")
     
     
-    main_eval_vanila("ZmapSDK", deskripsi_evaluator, "vanilla_ZS_chatgpt_helpfulness_parameter", hasil_chatgpt_pro)
+    # main_eval_vanila("ZmapSDK", deskripsi_evaluator, "vanilla_ZS_chatgpt_helpfulness_parameter", hasil_chatgpt_pro)
     # main_eval_vanila("ZmapSDK", deskripsi_evaluator, "vanilla_ZS_gemini_helpfulness_parameter", hasil_gemini_25_pro)
     

@@ -18,3 +18,7 @@ class DocumentationFull(DocumentationSummary):
     # Contoh field tambahan, sesuaikan dengan struktur data Anda
     full_content: Dict[str, Any] = Field(..., description="Konten lengkap hasil dokumentasi")
     analysis_artifacts: List[str] = Field(default=[], description="Daftar file artifact (gambar, dll)")
+    
+class GenerateDocumentationParameter(BaseModel):
+    include_overview: bool = True
+    source_code_mode: str = "signature"

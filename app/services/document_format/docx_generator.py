@@ -6,8 +6,11 @@ from docx import Document
 from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.style import WD_STYLE_TYPE
-from docx.oxml.shared import OxmlElement, qn
 from app.core.config import GRAPH_VISUALIZATION_DIRECTORY
+from collections import defaultdict
+
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 
 # --- KONFIGURASI BAHASA ---
 TRANSLATIONS = {
@@ -181,6 +184,167 @@ class DocxDocumentationGenerator:
         date_para = self.document.add_paragraph(date_str)
         date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
+    def add_project_executive_summary(self, components):
+        """
+        Menambahkan Executive Summary profesional dengan narasi template
+        dan sistem navigasi internal yang akurat.
+        """
+        if not components:
+            return
+
+        # Helper Internal untuk Akses Data
+        def get_val(obj, key, default=None):
+            if isinstance(obj, dict): return obj.get(key, default)
+            return getattr(obj, key, default)
+
+        def flatten_python(comps):
+            flat = []
+            for c in comps:
+                flat.append(c)
+                methods = get_val(c, 'method_components', [])
+                if methods: flat.extend(flatten_python(methods))
+            return flat
+
+        all_flat = flatten_python(components)
+
+        # --- 1. PREFACE SECTION ---
+        self.document.add_heading('Pendahuluan Analisis', level=1)
+        intro_p = self.document.add_paragraph(
+            "Laporan ini merupakan hasil ekstraksi dokumentasi otomatis yang dirancang untuk memberikan transparansi "
+            "penuh terhadap struktur teknis proyek. Bagian ini merangkum metrik arsitektur utama, organisasi file fisik, "
+            "serta peta navigasi komponen logika yang membentuk sistem."
+        )
+        intro_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+        # --- 2. KEY ARCHITECTURE METRICS ---
+        self.document.add_heading('Metrik Arsitektur Utama', level=2)
+        self.document.add_paragraph(
+            "Statistik di bawah ini memberikan gambaran kuantitatif mengenai skala proyek, "
+            "membantu tim teknis dalam mengestimasi kompleksitas dan cakupan pemeliharaan kode."
+        )
+        
+        # [Tabel Statistik Tetap Seperti Sebelumnya]
+        unique_files = sorted(list(set(get_val(c, 'relative_path') for c in all_flat if get_val(c, 'relative_path'))))
+        table = self.document.add_table(rows=2, cols=4)
+        table.style = 'Table Grid'
+        headers = ['Total File', 'Total Komponen', 'Jumlah Class', 'Fungsi/Method']
+        vals = [str(len(unique_files)), str(len(all_flat)), 
+                str(len([c for c in all_flat if get_val(c, 'component_type') == 'class'])),
+                str(len([c for c in all_flat if get_val(c, 'component_type') in ['function', 'method']]))]
+        
+        for i, h_text in enumerate(headers):
+            cell = table.cell(0, i)
+            cell.text = h_text
+            cell.paragraphs[0].runs[0].font.bold = True
+            cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            # Shading Header
+            tcPr = cell._tc.get_or_add_tcPr()
+            shd = OxmlElement('w:shd')
+            shd.set(qn('w:fill'), 'F2F2F2')
+            tcPr.append(shd)
+            
+            val_cell = table.cell(1, i)
+            val_cell.text = vals[i]
+            val_cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+            val_cell.paragraphs[0].runs[0].font.bold = True
+
+        self.document.add_paragraph()
+
+        # --- 3. PHYSICAL PROJECT HIERARCHY ---
+        self.document.add_heading('Hirarki Struktur Fisik', level=2)
+        self.document.add_paragraph(
+            "Visualisasi di bawah ini menampilkan organisasi direktori secara bersarang (nested). "
+            "Struktur ini mencerminkan bagaimana modul-modul dikelompokkan dalam sistem penyimpanan fisik."
+        )
+
+        # Membangun Tree Fisik (Logic Nested)
+        path_tree = {}
+        for path in unique_files:
+            parts = path.split('\\')
+            current = path_tree
+            for part in parts:
+                if part not in current: current[part] = {}
+                current = current[part]
+
+        def render_nested_tree(tree_node, depth=0):
+            items = sorted(tree_node.items(), key=lambda x: (len(x[1]) == 0, x[0]))
+            for name, children in items:
+                is_file = len(children) == 0
+                p = self.document.add_paragraph()
+                p.paragraph_format.left_indent = Inches(0.2 * depth)
+                if not is_file:
+                    p.add_run(f"📁 {name}").font.bold = True
+                    render_nested_tree(children, depth + 1)
+                else:
+                    p.add_run(f"└── 📄 {name}").font.color.rgb = RGBColor(41, 128, 185)
+
+        render_nested_tree(path_tree)
+        self.document.add_paragraph()
+
+        # --- 4. COMPONENT DIRECTORY MAP (Interactive TOC) ---
+        self.document.add_heading('Peta Navigasi Komponen', level=2)
+        self.document.add_paragraph(
+            "Gunakan daftar di bawah ini sebagai referensi navigasi cepat. Klik pada nama komponen "
+            "untuk langsung menuju ke dokumentasi teknis mendalam dari komponen tersebut."
+        )
+
+        file_map = defaultdict(list)
+        for comp in all_flat:
+            file_map[get_val(comp, 'relative_path')].append(comp)
+
+        for file_path in sorted(file_map.keys()):
+            parts = file_path.split('\\')
+            indent_level = len(parts) - 1
+            
+            # Heading File dalam TOC
+            h_file = self.document.add_paragraph()
+            h_file.paragraph_format.left_indent = Inches(0.2 * indent_level)
+            h_run = h_file.add_run(f"File: {parts[-1]}")
+            h_run.font.bold = True
+            h_run.font.underline = True
+            
+            for i, comp in enumerate(file_map[file_path]):
+                c_id = get_val(comp, 'id')
+                c_type = get_val(comp, 'component_type', 'func').upper()
+                c_name = c_id.split('.')[-1]
+                
+                li = self.document.add_paragraph()
+                li.paragraph_format.left_indent = Inches(0.2 * (indent_level + 1))
+                
+                # Visual Tree Line
+                li.add_run("└── ").font.color.rgb = RGBColor(180, 180, 180)
+                
+                # Type Label
+                t_run = li.add_run(f"[{c_type}] ")
+                t_run.font.size = Pt(8)
+                t_run.font.color.rgb = RGBColor(120, 120, 120)
+                
+                # --- HYPERLINK AKTIF ---
+                # Menghubungkan teks ke bookmark yang ada di detail documentation
+                safe_link = c_id.replace(".", "_").replace(" ", "_")
+                self._add_hyperlink_text(li, c_name, safe_link)
+                
+                # Line Info
+                line_run = li.add_run(f" (Halaman Detail)")
+                line_run.font.size = Pt(7)
+                line_run.italic = True
+
+    def add_hyperlink_to_bookmark(self, paragraph, text, bookmark_name):
+        """Helper untuk membuat klikable link di dalam dokumen ke section lain"""
+        run = paragraph.add_run(text)
+        run.font.color.rgb = RGBColor(0, 0, 255)
+        run.font.underline = True
+        
+        # Logic OXML untuk internal link (hanya bekerja maksimal jika target bookmark sudah ada)
+        hyperlink = OxmlElement('w:hyperlink')
+        hyperlink.set(qn('w:anchor'), bookmark_name)
+        new_run = OxmlElement('w:r')
+        rPr = OxmlElement('w:rPr')
+        new_run.append(rPr)
+        new_run.text = text
+        hyperlink.append(new_run)
+        paragraph._p.append(hyperlink)
+
     def add_table_of_contents(self, components: List[Any]):
         """
         Membuat Daftar Isi Manual yang interaktif.
@@ -250,7 +414,7 @@ class DocxDocumentationGenerator:
                 row_cells = table.add_row().cells
                 for i, field_key in enumerate(fields):
                     # # Ambil value, handle None/missing
-                    # val = item.get(field_key, "") or ""
+                    val = item.get(field_key, "") or ""
                     # # Khusus field 'name' atau 'error', kita buat bold otomatis di tabel? Opsional.
                     # row_cells[i].text = str(val)
                     
@@ -336,22 +500,35 @@ class DocxDocumentationGenerator:
         if not doc_data:
             return
 
-        safe_bookmark_name = component.id.replace(" ", "_")
+        # Menggunakan ID lengkap agar bookmark bersifat unik global
+        safe_bookmark_name = component.id.replace(".", "_").replace(" ", "_")
 
-        # 1. Header & Bookmark
+        # 1. Header & Bookmark (REVISI: Level 1 untuk TOC Utama)
+        self.document.add_page_break()
+        
         h = self.document.add_heading(level=1)
+        # Memasukkan Bookmark Start & End di dalam heading
         self._add_bookmark_start(h, safe_bookmark_name)
-        self._add_hyperlink_text(h, component.id, self.TOC_BOOKMARK, tooltip=self.labels["back_to_toc_tooltip"])
+        
+        # Menampilkan Nama Pendek komponen di judul, tapi link balik ke TOC tetap ada
+        short_name = component.id.split('.')[-1]
+        self._add_hyperlink_text(h, f"Component: {short_name}", self.TOC_BOOKMARK, 
+                                tooltip=self.labels.get("back_to_toc_tooltip", "Kembali ke Daftar Isi"))
         self._add_bookmark_end(h)
         
-        # 2. Metadata
+        # 2. Metadata Section (Clean & Minimalist)
         meta_para = self.document.add_paragraph()
-        meta_para.add_run(f"{self.labels['type']}: {component.component_type.capitalize()} | ").bold = True
-        meta_para.add_run(f"{self.labels['file']}: {component.relative_path}").italic = True
+        run_type = meta_para.add_run(f"{self.labels.get('type', 'Type')}: ")
+        run_type.bold = True
+        meta_para.add_run(f"{component.component_type.capitalize()} | ")
+        
+        run_file = meta_para.add_run(f"{self.labels.get('file', 'File')}: ")
+        run_file.bold = True
+        meta_para.add_run(f"{component.relative_path}").italic = True
 
-        # --- FITUR BARU 1: Code Signature ---
-        if component.component_signature:
-            # Gunakan style CodeBlock
+        # 3. Code Signature Block
+        if hasattr(component, 'component_signature') and component.component_signature:
+            # Menggunakan style blok kode agar terlihat seperti di editor
             self.document.add_paragraph(component.component_signature, style='SignatureBlock')
         
         # --- 4. DEPENDENCY GRAPH IMAGE (REVISI: HEIGHT LIMIT) ---

@@ -5,9 +5,11 @@ from app.schemas.response.documentation_schema import DocumentationSummary, Docu
 from app.services.documentation_service import (
     get_all_documentations_from_db, 
     get_record_from_database,
-    convert_dicts_to_code_components
+    convert_dicts_to_code_components,
 )
+from app.services.code_component_service import load_source_code_from_record
 from app.schemas.response.analyze_schema import  GenerateResultResponse, GenerateResultRequest
+from app.schemas.response.documentation_schema import GenerateDocumentationParameter
 from app.core.config import DOCUMENT_RESULTS_DIRECTORY
 from app.services.document_format.docx_generator import DocxDocumentationGenerator, convert_docx_to_pdf
 import os
@@ -49,7 +51,7 @@ async def get_documentation_by_id(doc_id: str):
     try:
         # Gunakan fungsi yang diadaptasi dari yang Anda berikan
         document = get_record_from_database(doc_id, sidebar_mode=True)
-        
+        document = load_source_code_from_record(document)
         if document:
             return StandardResponse(data=document)
         else:
@@ -79,9 +81,9 @@ async def generate_downloadable_result(process_id: str, body: GenerateResultRequ
     print(process_id)
     record_doc = get_record_from_database(
         record_code=process_id, 
-        sidebar_mode=False 
+        sidebar_mode=False
     )
-    
+    record_doc = load_source_code_from_record(record_doc)
     if not record_doc:
         raise HTTPException(status_code=404, detail=f"Process with ID '{process_id}' not found.")
     
@@ -107,7 +109,7 @@ async def generate_downloadable_result(process_id: str, body: GenerateResultRequ
     )
     
     generator.add_title_page()
-    generator.add_table_of_contents(components)
+    generator.add_project_executive_summary(components)
     for comp in components:
         generator.add_component_documentation(comp)
         

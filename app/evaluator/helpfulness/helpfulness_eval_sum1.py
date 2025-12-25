@@ -33,7 +33,9 @@ testing_repository_root_path = {
     
     "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
     "M_Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
-    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master"
+    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master",
+    
+    "Demo": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\DG_Backend\\app\\extracted_projects\\64248805-bbe9-4afc-a761-779f39fe12f4\\DemoProject_2"
 }
 
 testing_repository_record_code = {
@@ -50,42 +52,13 @@ testing_repository_record_code = {
     
     "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
     "M_Vlrdev": "6b43c70a-e878-44c2-ab55-8b919116bcc6",
-    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1"
+    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1",
+    
+    "Demo": "64248805-bbe9-4afc-a761-779f39fe12f4"
 }
 
-# api_keys_list = [
-#     "AIzaSyAk15nyhP0l_fCtJykak-sicHpcjAi73rQ", #rmh
-#     "AIzaSyCMIYWCfDPUS96uiGDopbEX13LARvU51Co", #xg8
-# ]
-
-# api_keys_list = [
-#     "AIzaSyAP_6gEXrGrSyRyMrGCs0UOsC_5nf3Ha50", #xg38 GemEvalTru
-#     "AIzaSyBkaMjqhVfRtJf1MwerHFhkcP9l0BNJnbY", #rraferg33@gmail.com GeminiEvalTru
-# ]
-
-
-# api_keys_list = [
-#     "AIzaSyDXx_7xwHT5Q3917MBIN51GebwYvtC5-Nw", #eval01
-#     "AIzaSyASMF2dvtM8bKA4V3n3OFUfXqCEeeTe3Os", #eval06
-# ]
-
-# api_keys_list = [
-#     "AIzaSyArOi2ZJto6q9kP0O2Zm6JcaP6mLgFmt_4", #ver05
-#     "AIzaSyBm76jEgvaVu8GQldzfgL51BiKdFN675RA", #ver06
-# ]
-
-# api_keys_list = [
-#     "AIzaSyAPcsBEtG9FkvNtB3syUN_cj0nBbofX9a4", #tikno3
-#     "AIzaSyDrmEr2KLko7qcer21CT0f-WeDmx1yVoAk", #tikno4
-#     "AIzaSyDH2j_VAvITzm0xJbmVSBnCodsOKDFDimg"
-# ]
-
 api_keys_list = [
-    "AIzaSyB3ePXqNh86z_qFuqCDnHnlR3ctSbY7uYE", # tikno
-    "AIzaSyDjLZu3oY0JnZOBO7MkI4_ukWo1P-WkzUI", #eval08
-    "AIzaSyCcw6MiszvalIwPKFPbALJIP1negIsBQfo", # tikno2
-    "AIzaSyAPcsBEtG9FkvNtB3syUN_cj0nBbofX9a4", #tikno3
-    "AIzaSyDrmEr2KLko7qcer21CT0f-WeDmx1yVoAk", #tikno4
+    "TEMPORARY_GOOGLE_API_KEY",
 ]
 
 llm_list: List[ChatGoogleGenerativeAI] = []
@@ -326,7 +299,8 @@ if __name__ == "__main__":
     
     # main_eval_summary("PyPDFForm", summary_evaluator)
     # main_eval_summary("Nanochat", summary_evaluator)
-    main_eval_summary("AutoNUS", summary_evaluator)
+    # main_eval_summary("AutoNUS", summary_evaluator)
+    main_eval_summary("Demo", summary_evaluator)
     
     
     # main_eval_summary("PowerPA", summary_evaluator)

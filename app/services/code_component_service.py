@@ -99,6 +99,65 @@ def _get_ast_tree_from_cache(
     # 2. Kembalikan dari cache
     return ast_cache[file_path]
 
+def _hydrate_single_component(
+    component_dict: Dict[str, Any],
+    ast_cache: Dict[str, Optional[Tuple[ast.Module, str]]]
+) -> None:
+    absolute_path = component_dict.get('file_path')
+    start_line = component_dict.get('start_line')
+    end_line = component_dict.get('end_line')
+    
+    if not all([absolute_path, start_line, end_line]):
+        print(f"[HYDRATE SKIP] Komponen {component_dict.get('id', 'Unknown')} kekurangan path atau info baris.")
+        component_dict['source_code'] = "" # Pastikan field ada tapi kosong
+        return
+
+    cache_result = _get_ast_tree_from_cache(absolute_path, ast_cache)
+    if cache_result is None:
+        print(f"[HYDRATE FAIL] Gagal mem-parse file {absolute_path} untuk komponen {component_dict.get('id')}.")
+        component_dict['source_code'] = ""
+        return
+        
+    full_ast_tree, source_code_string = cache_result
+
+    finder = NodeFinder(target_start=start_line, target_end=end_line)
+    found_node = finder.find(full_ast_tree)
+    
+    actual_start_line = found_node.decorator_list[0].lineno if (found_node and getattr(found_node, 'decorator_list', [])) else start_line
+
+    # 4. Ambil dan isi source_code
+    component_dict['source_code'] = source_code_getter(
+        source=source_code_string,
+        start_line=actual_start_line, # Gunakan baris mulai yang sudah dikoreksi
+        end_line=end_line
+    )
+
+    # 5. Proses rekursif untuk method_components jika ada
+    if 'method_components' in component_dict and isinstance(component_dict['method_components'], list):
+        for method_comp_dict in component_dict['method_components']:
+            # Panggil fungsi ini lagi untuk setiap sub-komponen
+            _hydrate_single_component(method_comp_dict, ast_cache)
+
+
+def load_source_code_from_record(document: Dict[str, Any]) -> Dict[str, Any]:
+    
+    ast_cache: Dict[str, Optional[Tuple[ast.Module, str]]] = {}
+    components_list = document.get('components', [])
+
+    if not isinstance(components_list, list):
+        print(f"[LOAD SRC WARN] 'components' dalam dokumen bukan list. Melewatkan.")
+        return document
+
+    print(f"Memulai proses hidrasi source code untuk {len(components_list)} komponen utama...")
+
+    # Iterasi melalui setiap komponen level atas
+    for component_dict in components_list:
+        _hydrate_single_component(component_dict, ast_cache)
+    
+    print("Hidrasi source code selesai.")
+    
+    return document
+
 def hydrate_components_with_ast(
     components: List[CodeComponent],
     root_folder_path: str

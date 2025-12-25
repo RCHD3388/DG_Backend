@@ -21,7 +21,9 @@ testing_repository_root_path = {
     
     "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
     "M_Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
-    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master"
+    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master",
+    
+    "Demo": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\DG_Backend\\app\\extracted_projects\\64248805-bbe9-4afc-a761-779f39fe12f4\\DemoProject_2"
 }
 
 testing_repository_record_code = {
@@ -38,7 +40,9 @@ testing_repository_record_code = {
     
     "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
     "M_Vlrdev": "6b43c70a-e878-44c2-ab55-8b919116bcc6",
-    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1"
+    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1",
+    
+    "Demo": "64248805-bbe9-4afc-a761-779f39fe12f4"
 }
 
 def evaluate_completeness(
@@ -181,9 +185,11 @@ if __name__ == "__main__":
     # evaluation("PyPDFForm"); print()
     # evaluation("Dexter"); print()
     
-    evaluation("M_AutoNUS", "mistral"); print()
-    evaluation("M_Vlrdev", "mistral"); print()
-    evaluation("M_RPAP", "mistral"); print()
+    # evaluation("M_AutoNUS", "mistral"); print()
+    # evaluation("M_Vlrdev", "mistral"); print()
+    # evaluation("M_RPAP", "mistral"); print()
+    
+    evaluation("Demo"); print()
     
     # close mongo connection
     print()

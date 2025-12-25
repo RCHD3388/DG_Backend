@@ -13,7 +13,7 @@ from app.evaluator.helpfulness.helpfulness_description import EvaluatorDeskripsi
 from app.evaluator.helpfulness.helpfulness_parameter import EvaluatorParameterDokumentasi
 from app.core.config import EVALUATION_RESULTS_DIR 
 from langchain_core.messages import HumanMessage, SystemMessage
-from app.evaluator.baseline_vanilla import hasil_chatgpt_pro, hasil_gemini_25_pro, hasil_desk_chatgpt_pro, hasil_desk_gemini_25_pro
+# from app.evaluator.baseline_vanilla import hasil_chatgpt_pro, hasil_gemini_25_pro, hasil_desk_chatgpt_pro, hasil_desk_gemini_25_pro
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.language_models import BaseChatModel
@@ -34,7 +34,9 @@ testing_repository_root_path = {
     
     "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
     "M_Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
-    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master"
+    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master",
+    
+    "Demo": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\DG_Backend\\app\\extracted_projects\\64248805-bbe9-4afc-a761-779f39fe12f4\\DemoProject_2"
 }
 
 testing_repository_record_code = {
@@ -51,36 +53,13 @@ testing_repository_record_code = {
     
     "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
     "M_Vlrdev": "6b43c70a-e878-44c2-ab55-8b919116bcc6",
-    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1"
+    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1",
+    
+    "Demo": "64248805-bbe9-4afc-a761-779f39fe12f4"
 }
 
-# api_keys_list = [
-#     "AIzaSyAk15nyhP0l_fCtJykak-sicHpcjAi73rQ", #rmh
-#     "AIzaSyCMIYWCfDPUS96uiGDopbEX13LARvU51Co", #xg8
-# ]
-
-# api_keys_list = [
-#     "AIzaSyAP_6gEXrGrSyRyMrGCs0UOsC_5nf3Ha50", #xg38 GemEvalTru
-#     "AIzaSyBkaMjqhVfRtJf1MwerHFhkcP9l0BNJnbY", #rraferg33@gmail.com GeminiEvalTru
-# ]
-
-# api_keys_list = [
-#     "AIzaSyAvA94CfJNa_LkhaaNCImUwVER5mhFb5To", #writer03
-#     "AIzaSyAAh1DdBgmHsnMfEQVeajpn9-qnb9feBl4", #ra2,
-#     "AIzaSyC-w6CfDcAJHxkOSsmf0LcCoy_Z819gJIA" #writer02
-# ]
-
-
-# api_keys_list = [
-#     "AIzaSyBZE0C7gBsdqz282dWFsNbcU6NBB7sNpBk", #rmh eval01
-#     "AIzaSyC8H2XbI4ldv4s_UaLWisK0wvf9VrN6vIA", #va3-eval02
-# ]
-
 api_keys_list = [
-    # "AIzaSyCdiPzLAgrp4znqr917OW7aeRNFQpdYkSk",
-    # "AIzaSyBY4_ci6MCWtq93cNTMVfs-lXm4-mAE7xk",
-    "AIzaSyAbtvbtuqunWlr3PAVwCrljHJMU6Qg9urU",
-    "AIzaSyBFAW1gT8N-iDped-BIYVEsluWyULWW1VU", #xg38 GemEvalTru
+    "TEMPORARY_GOOGLE_API_KEY", 
 ]
 
 llm_list: List[ChatGoogleGenerativeAI] = []
@@ -342,11 +321,14 @@ if __name__ == "__main__":
     # main_eval("ZmapSDK", deskripsi_evaluator, "helpfulness_description")
     # main_eval("Dexter", deskripsi_evaluator, "helpfulness_description")
     # main_eval("RPAP", deskripsi_evaluator, "helpfulness_description")
+    main_eval("Demo", deskripsi_evaluator, "helpfulness_description")
     
     # main_eval("M_AutoNUS", deskripsi_evaluator, "helpfulness_description", "mistral")
     # main_eval("M_Vlrdev", deskripsi_evaluator, "helpfulness_description", "mistral")
     # main_eval("M_RPAP", deskripsi_evaluator, "helpfulness_description", "mistral")
     
-    main_eval_vanila("ZmapSDK", deskripsi_evaluator, "vanilla_ZS_chatgpt_helpfulness_description", hasil_desk_chatgpt_pro)
+    # main_eval_vanila("ZmapSDK", deskripsi_evaluator, "vanilla_ZS_chatgpt_helpfulness_description", hasil_desk_chatgpt_pro)
     # main_eval_vanila("ZmapSDK", deskripsi_evaluator, "vanilla_ZS_gemini_helpfulness_description", hasil_desk_gemini_25_pro)
+    
+    # py -m app.evaluator.helpfulness.helpfulness_eval_desk1
     

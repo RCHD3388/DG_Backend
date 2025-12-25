@@ -32,7 +32,9 @@ testing_repository_root_path = {
     
     "M_AutoNUS": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\AutoNUS\\anus",
     "M_Vlrdev": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\vlrdevapi-main\\vlrdevapi-main",
-    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master"
+    "M_RPAP": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\Evaluation\\extracted_projects\\RPA-Python-master\\RPA-Python-master",
+    
+    "Demo": "D:\\ISTTS\\Semester_7\\TA\\Project_TA\\DG_Backend\\app\\extracted_projects\\64248805-bbe9-4afc-a761-779f39fe12f4\\DemoProject_2"
 }
 
 testing_repository_record_code = {
@@ -49,19 +51,13 @@ testing_repository_record_code = {
     
     "M_AutoNUS": "55f7c95d-1618-4235-80a6-4765d6f5bbb4",
     "M_Vlrdev": "6b43c70a-e878-44c2-ab55-8b919116bcc6",
-    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1"
+    "M_RPAP": "524c661a-b3a8-4fd0-ab5e-f2d22a32eeb1",
+    
+    "Demo": "64248805-bbe9-4afc-a761-779f39fe12f4"
 }
 
-# api_keys_list = [
-#     # "AIzaSyB3ePXqNh86z_qFuqCDnHnlR3ctSbY7uYE", # tikno
-#     "AIzaSyCcw6MiszvalIwPKFPbALJIP1negIsBQfo", # tikno2
-#     "AIzaSyAPcsBEtG9FkvNtB3syUN_cj0nBbofX9a4", #tikno3
-#     "AIzaSyDrmEr2KLko7qcer21CT0f-WeDmx1yVoAk", #tikno4
-# ]
-
 api_keys_list = [
-    "AIzaSyAk15nyhP0l_fCtJykak-sicHpcjAi73rQ", #rmh
-    "AIzaSyBkaMjqhVfRtJf1MwerHFhkcP9l0BNJnbY", #xg8
+    "TEMPORARY_GOOGLE_API_KEY", #xg8
 ]
 
 llm_list: List[ChatGoogleGenerativeAI] = []
@@ -631,6 +627,7 @@ if __name__ == "__main__":
     # main("Vlrdev")
     # main("ZmapSDK")
     # main("RPAP")
+    main("Demo")
     
     # main("M_AutoNUS", "mistral")
     # main("M_Vlrdev", "mistral")
@@ -639,7 +636,7 @@ if __name__ == "__main__":
     # evaluate_vanilla_truthfulness("ZmapSDK", hasil_chatgpt_pro, "hasil_chatgpt_zs_no_dep")
     
     # evaluate_vanilla_truthfulness("ZmapSDK", hasil_gemini_25_pro, "hasil_gemini_fs_no_dep")
-    evaluate_vanilla_truthfulness("ZmapSDK", hasil_chatgpt_pro, "hasil_chatgpt_fs_no_dep")
+    # evaluate_vanilla_truthfulness("ZmapSDK", hasil_chatgpt_pro, "hasil_chatgpt_fs_no_dep")
     
     print()
     close_mongo_connection()
