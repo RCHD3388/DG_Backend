@@ -87,8 +87,8 @@ async def generate_downloadable_result(process_id: str, body: GenerateResultRequ
     if not record_doc:
         raise HTTPException(status_code=404, detail=f"Process with ID '{process_id}' not found.")
     
-    components = convert_dicts_to_code_components(record_doc['components'])
     
+    components = convert_dicts_to_code_components(record_doc['components'])
     components.sort(key=lambda x: (x.file_path, x.id))
 
     # Setup Output
@@ -111,7 +111,7 @@ async def generate_downloadable_result(process_id: str, body: GenerateResultRequ
     generator.add_title_page()
     generator.add_project_executive_summary(components)
     for comp in components:
-        generator.add_component_documentation(comp)
+        generator.add_component_documentation(comp, source_code_mode=body.source_code_mode)
         
     generator.save(full_file_path)
 

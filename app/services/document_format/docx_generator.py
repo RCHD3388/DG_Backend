@@ -492,7 +492,7 @@ class DocxDocumentationGenerator:
                     p.paragraph_format.space_after = Pt(8)
     
     # --- UPDATE METHOD UTAMA ---
-    def add_component_documentation(self, component: Any):
+    def add_component_documentation(self, component: Any, source_code_mode: str = "signature"):
         """
         Menambahkan dokumentasi komponen.
         """
@@ -526,10 +526,24 @@ class DocxDocumentationGenerator:
         run_file.bold = True
         meta_para.add_run(f"{component.relative_path}").italic = True
 
-        # 3. Code Signature Block
-        if hasattr(component, 'component_signature') and component.component_signature:
-            # Menggunakan style blok kode agar terlihat seperti di editor
-            self.document.add_paragraph(component.component_signature, style='SignatureBlock')
+        # 3. CODE DISPLAY LOGIC (Revisi Berdasarkan source_code_mode)
+        # Tampilkan Signature jika mode "signature" atau "both"
+        if source_code_mode in ["signature", "both"]:
+            if hasattr(component, 'component_signature') and component.component_signature:
+                self.document.add_heading("Signature", level=3)
+                self.document.add_paragraph(component.component_signature, style='SignatureBlock')
+
+        # Tampilkan Full Source Code jika mode "full" atau "both"
+        if source_code_mode in ["full", "both"]:
+            if hasattr(component, 'source_code') and component.source_code:
+                self.document.add_heading("Source Code Implementation", level=3)
+                # Menggunakan style 'CodeBlock' yang biasanya memiliki font monospaced (Courier New) 
+                # dan shading abu-abu untuk membedakannya dari teks biasa
+                code_para = self.document.add_paragraph(component.source_code, style='CodeBlock')
+                
+                # Opsional: Jika kode sangat panjang, kita perkecil sedikit font-nya agar hemat halaman
+                for run in code_para.runs:
+                    run.font.size = Pt(8.5)
         
         # --- 4. DEPENDENCY GRAPH IMAGE (REVISI: HEIGHT LIMIT) ---
         graph_url = component.dependency_graph_url

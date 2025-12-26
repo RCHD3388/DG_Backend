@@ -81,6 +81,7 @@ class CodeComponent:
             used_by=set(data.get('used_by', [])),
             docgen_final_state=data.get('docgen_final_state', ""),
             component_signature=data.get('component_signature', ""),
+            source_code=data.get('source_code', ""),
             start_line=data.get('start_line', 0),
             end_line=data.get('end_line', 0),
             has_docstring=data.get('has_docstring', False),
