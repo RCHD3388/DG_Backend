@@ -504,7 +504,7 @@ class DocxDocumentationGenerator:
         safe_bookmark_name = component.id.replace(".", "_").replace(" ", "_")
 
         # 1. Header & Bookmark (REVISI: Level 1 untuk TOC Utama)
-        self.document.add_page_break()
+        # self.document.add_page_break()
         
         h = self.document.add_heading(level=1)
         # Memasukkan Bookmark Start & End di dalam heading

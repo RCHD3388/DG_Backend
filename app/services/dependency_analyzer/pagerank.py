@@ -2,6 +2,8 @@ from typing import Dict, Set, Any, List, Tuple
 import numpy as np
 import networkx as nx
 from app.utils.CustomLogger import CustomLogger
+from app.core.config import DEPENDENCY_GRAPHS_DIR
+import json
 
 logger = CustomLogger("Pagerank")
 
@@ -73,6 +75,9 @@ def get_pagerank_scores(DG: nx.DiGraph) -> Dict[str, float]:
         reversed_DG = DG.reverse(copy=True)
         
         pagerank_scores = nx.pagerank(reversed_DG)
+        
+        with open(DEPENDENCY_GRAPHS_DIR / "pagerank_scores.json", "w") as f:
+            json.dump(pagerank_scores, f, indent=4)
         
         return pagerank_scores
     except Exception as e:
